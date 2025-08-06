@@ -2,6 +2,9 @@ package com.gym.gym_management;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import java.sql.SQLOutput;
 
 @SpringBootApplication
 public class GymManagementApplication {
