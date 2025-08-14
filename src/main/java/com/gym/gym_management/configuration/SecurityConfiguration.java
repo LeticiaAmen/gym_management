@@ -35,8 +35,9 @@ public class SecurityConfiguration {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(
                         auth -> auth
-                                // Permitir acceso público solo para login y rutas de documentación
-                                .requestMatchers("/auth/**").permitAll()
+                                // Permitir acceso público solo para login; registrar requiere rol USER
+                                .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/auth/register").hasRole("USER")
                                 .anyRequest().authenticated()
 
                 )

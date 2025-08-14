@@ -30,7 +30,7 @@ public class AuthenticationController {
         this.authenticationManager = authenticationManager;
     }
 
-
+    @PreAuthorize("hasRole('USER')")
     @PostMapping("/register")
     public ResponseEntity<AuthenticationResponse> register (
             @RequestBody RegisterRequest request) {
