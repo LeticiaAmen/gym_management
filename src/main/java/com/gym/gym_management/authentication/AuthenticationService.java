@@ -9,6 +9,20 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+/**
+ * Servicio encargado de manejar la lógica de autenticación y registro de usuarios.
+ *
+ * Funcionalidades principales:
+ * - Registrar nuevos usuarios en el sistema con contraseñas encriptadas y roles definidos.
+ * - Autenticar usuarios existentes y generar un token JWT para sesiones seguras.
+ *
+ * Relación con los requerimientos:
+ * Cumple con la parte de "Autenticación y Seguridad" del proyecto:
+ *   - Implementa cifrado de contraseñas con BCrypt.
+ *   - Usa JWT para autenticar y autorizar usuarios.
+ *   - Restringe acceso según roles definidos.
+ */
+
 @Service // Indica que esta clase es un servicio de Spring y se gestionará como un bean
 public class AuthenticationService {
     //Repositorio para acceder a los usuarios en la base de datos

@@ -5,21 +5,40 @@ import jakarta.persistence.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.User.UserBuilder;
 
 import java.util.Collection;
 import java.util.List;
 
-
+/**
+ * Entidad JPA que representa a un usuario del sistema (administrador o cliente).
+ *
+ * Características:
+ * - Implementa UserDetails para integrarse con Spring Security.
+ * - Contiene credenciales (email y contraseña) y el rol asignado (Role enum).
+ * - Soporta un patrón Builder para facilitar su creación.
+ *
+ * Relación con los requerimientos:
+ * - "Usuarios y Roles": define el acceso a la aplicación según el rol (USER o CLIENT).
+ * - Utilizada en el proceso de autenticación (login) y para verificar permisos en endpoints protegidos.
+ * - Asociada a Client en una relación 1:1 cuando el usuario es un cliente del gimnasio.
+ */
 @Entity
 @Table(name = "users")
 public class User implements UserDetails {
 
+    /**
+     * Identificador único del usuario.
+     * Generado automáticamente (autoincremental).
+     */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // correo que sirve como nombre de usuario. debe ser unico y no nulo
     @Column(nullable = false, unique = true)
     private String email;
+
+    //contraseña encriptada del usuario
     @Column(nullable = false)
     private String password;
 
@@ -36,7 +55,12 @@ public class User implements UserDetails {
         this.role = role;
     }
 
-   // === MÉTODOS DE UserDetails ===
+   // === MÉTODOS DE UserDetails (Spring Security) ===
+
+    /**
+     * Devuelve la lista de autoridades (permisos) del usuario.
+     * Spring Security requiere que los roles tengan el prefijo "ROLE_".
+     */
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
@@ -72,12 +96,19 @@ public class User implements UserDetails {
         return true;
     }
 
-    //Builder manual
+// === PATRÓN BUILDER (creación fluida de instancias) ===
+
+    /**
+     * Inicia la construcción de un objeto User usando el patrón Builder.
+     */
     public static UserBuilder builder() {
         return new UserBuilder();
 
     }
 
+    /**
+     * Clase interna que implementa el patrón Builder para User.
+     */
     public static class UserBuilder {
         private Long id;
         private String email;
