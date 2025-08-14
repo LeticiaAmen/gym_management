@@ -31,6 +31,7 @@ public class AuthenticationController {
     }
 
 
+    @PreAuthorize("hasRole('USER')")
     @PostMapping("/register")
     public ResponseEntity<AuthenticationResponse> register (
             @RequestBody RegisterRequest request) {
