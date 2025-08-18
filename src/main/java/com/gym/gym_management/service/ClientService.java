@@ -3,6 +3,7 @@ package com.gym.gym_management.service;
 import com.gym.gym_management.model.Client;
 import com.gym.gym_management.repository.IClientRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -27,6 +28,10 @@ public class ClientService {
     // Repositorio para acceder a los datos de clientes en la base de datos.
     @Autowired
     private IClientRepository clientRepository;
+
+    //Codificador de contraseñas para almacenar passwords
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     /**
      * Obtiene todos los clientes registrados en la base de datos.
@@ -60,6 +65,9 @@ public class ClientService {
      * @param client objeto Client con los datos actualizados.
      */
     public void update(Client client){
+        if (client.getUser() != null && client.getUser().getPassword()!= null){
+           client.getUser().setPassword(passwordEncoder.encode(client.getUser().getPassword()));
+        }
         clientRepository.save(client);
     }
 

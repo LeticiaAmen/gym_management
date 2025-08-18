@@ -34,7 +34,9 @@ public class Client {
     private Long id; //No usamos @GeneratedValue porque se asigna a partir de usuario
 
     //Relación 1:1 con user
-    @OneToOne
+    // Se añade cascade = cascadeType.all para propagar las operaciones de persistencia desde Client hacia su user asocidado.
+    // de esta manera al guardar o modificar un user se actualiza automáticamente el user vinculado.
+    @OneToOne(cascade = CascadeType.ALL)
     @MapsId //Le indica a JPA que use el id del usuario como id del cliente
     @JoinColumn(name = "user_id") //define la FK física en la tabla "clients" apuntando a "users".
     private User user;
