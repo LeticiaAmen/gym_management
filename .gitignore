@@ -27,3 +27,8 @@ replay_pid*
 src/main/resources/application-dev.properties
 # secrets
 .env
+# Maven
+target/
+# IntelliJ
+.idea/
+*.iml
