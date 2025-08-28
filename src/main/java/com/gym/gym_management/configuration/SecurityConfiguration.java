@@ -1,6 +1,7 @@
 package com.gym.gym_management.configuration;
 
 
+import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -77,6 +78,10 @@ public class SecurityConfiguration {
                 // 2. Reglas de autorización
                 .authorizeHttpRequests(
                         auth -> auth
+                                // Permitir estáticos y home** (sirven tu index.html)
+                                .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
+                                .requestMatchers("/", "/index.html", "/favicon.ico",
+                                        "/css/**", "/js/**", "/img/**", "/assets/**").permitAll()
                                 // Permitir acceso público solo para login; registrar requiere rol USER
                                 .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/auth/register").hasRole("USER")
