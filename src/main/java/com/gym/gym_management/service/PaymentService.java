@@ -1,6 +1,8 @@
 package com.gym.gym_management.service;
 
+import com.gym.gym_management.model.Client;
 import com.gym.gym_management.model.Payment;
+import com.gym.gym_management.repository.IClientRepository;
 import com.gym.gym_management.repository.IPaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,10 @@ public class PaymentService {
     @Autowired
     private IPaymentRepository paymentRepository;
 
+    // Repositorio de clientes para vincular pagos a un cliente existente
+    @Autowired
+    private IClientRepository clientRepository;
+
     /**
      * Obtiene todos los pagos asociados a un cliente específico.
      *
@@ -46,6 +52,21 @@ public class PaymentService {
      * @return el pago registrado.
      */
     public Payment registerPayment(Payment payment){
+        return paymentRepository.save(payment);
+    }
+
+    /**
+     * Registra un pago asociado a un cliente.
+     *
+     * @param clientId id del cliente que realiza el pago
+     * @param payment  entidad Payment con la información del pago
+     * @return el pago registrado
+     * @throws Exception si el cliente no existe
+     */
+    public Payment registerPayment(Long clientId, Payment payment) throws Exception{
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new Exception("No se encontró el cliente con id: " + clientId));
+        client.registerPayment(payment);
         return paymentRepository.save(payment);
     }
 

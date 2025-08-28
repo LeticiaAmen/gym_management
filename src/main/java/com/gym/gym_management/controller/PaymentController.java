@@ -4,6 +4,7 @@ import com.gym.gym_management.model.Payment;
 import com.gym.gym_management.service.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,8 +16,8 @@ import java.util.Optional;
  * Endpoints:
  * - GET    /payments         → Lista todos los pagos.
  * - GET    /payments/{id}    → Busca un pago por su id.
- * - POST   /payments         → Registra un nuevo pago.
- * - DELETE /payments/{id}    → Elimina un pago por su id.
+ * - POST   /payments/client/{clientId} → Registra un nuevo pago para un cliente.
+ * - DELETE /payments/{id}             → Elimina un pago por su id.
  *
  * Relación con los requerimientos:
  * - "Gestión de Clientes" y "Historial de Pagos":
@@ -71,9 +72,10 @@ public class PaymentController {
      * @param payment objeto Payment con la información del pago a registrar.
      * @return el pago registrado.
      */
-    @PostMapping
-    public Payment save(@RequestBody Payment payment){
-        return paymentService.registerPayment(payment);
+    @PostMapping("/client/{clientId}")
+    @PreAuthorize("hasRole('USER')")
+    public Payment save(@PathVariable Long clientId, @RequestBody Payment payment) throws Exception{
+        return paymentService.registerPayment(clientId, payment);
     }
 
     /**
@@ -85,6 +87,7 @@ public class PaymentController {
      * @throws Exception si ocurre un error durante la eliminación.
      */
    @DeleteMapping("/{id}")
+   @PreAuthorize("hasRole('USER')")
     public ResponseEntity<String> delete(@PathVariable Long id) throws Exception{
        paymentService.delete(id);
        return ResponseEntity.ok("Se eliminó el pago con id: " + id);
