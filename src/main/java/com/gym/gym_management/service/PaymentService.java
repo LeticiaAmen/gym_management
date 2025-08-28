@@ -2,11 +2,13 @@ package com.gym.gym_management.service;
 
 import com.gym.gym_management.model.Client;
 import com.gym.gym_management.model.Payment;
+import com.gym.gym_management.model.PaymentState;
 import com.gym.gym_management.repository.IClientRepository;
 import com.gym.gym_management.repository.IPaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -63,9 +65,17 @@ public class PaymentService {
      * @return el pago registrado
      * @throws Exception si el cliente no existe
      */
-    public Payment registerPayment(Long clientId, Payment payment) throws Exception{
+    public Payment registerPayment(Long clientId,
+                                   LocalDate paymentDate,
+                                   LocalDate expirationDate,
+                                   Double amount) throws Exception {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new Exception("No se encontró el cliente con id: " + clientId));
+       Payment payment = new Payment();
+       payment.setPaymentDate(paymentDate);
+       payment.setExpirationDate(expirationDate);
+       payment.setAmount(amount);
+       payment.setPaymentState(PaymentState.UP_TO_DATE);
         client.registerPayment(payment);
         return paymentRepository.save(payment);
     }

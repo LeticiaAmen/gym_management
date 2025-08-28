@@ -1,5 +1,6 @@
 package com.gym.gym_management.controller;
 
+import com.gym.gym_management.controller.dto.RegisterPaymentRequest;
 import com.gym.gym_management.model.Payment;
 import com.gym.gym_management.service.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -74,8 +76,14 @@ public class PaymentController {
      */
     @PostMapping("/client/{clientId}")
     @PreAuthorize("hasRole('USER')")
-    public Payment save(@PathVariable Long clientId, @RequestBody Payment payment) throws Exception{
-        return paymentService.registerPayment(clientId, payment);
+    public Payment save(@PathVariable Long clientId,
+                        @RequestBody RegisterPaymentRequest request) throws Exception{
+        LocalDate paymentDate = request.getPaymentDate() != null
+                ? request.getPaymentDate()
+                : LocalDate.now();
+        LocalDate expirationDate = paymentDate.plusDays(request.getDuration().getDays());
+
+        return paymentService.registerPayment(clientId, paymentDate, expirationDate, request.getAmount());
     }
 
     /**

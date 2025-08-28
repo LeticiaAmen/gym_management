@@ -42,7 +42,7 @@ public class Payment {
      * Estado del pago (ej: PENDIENTE, PAGADO, VENCIDO).
      * @Enumerated sin tipo explícito usa ORDINAL por defecto, pero es recomendable usar STRING.
      */
-    @Enumerated
+    @Enumerated(EnumType.STRING)
     private PaymentState paymentState;
 
     /**
