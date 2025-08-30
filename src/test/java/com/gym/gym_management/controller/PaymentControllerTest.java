@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -59,5 +60,23 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.expirationDate").value(payment.getExpirationDate().toString()));
 
         verify(paymentService).registerPayment(eq(1L), any(LocalDate.class), any(LocalDate.class), anyDouble());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void registerPaymentWithNullDuration() throws Exception {
+        RegisterPaymentRequest request = new RegisterPaymentRequest();
+        request.setAmount(100.0); //monto del pago
+        request.setPaymentDate(LocalDate.of(2024, 1, 1)); //fecha del pago fija
+        // duration se deja en null para simular la solicitud inválida
+
+        //se realiza la llamada al endpoint esperando un 400 bad request
+        mockMvc.perform(post("/payments/client/{clientId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        // el servicio no debe ser invocado cuando la duración es nula.
+        verifyNoInteractions(paymentService);
     }
 }

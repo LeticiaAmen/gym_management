@@ -76,14 +76,24 @@ public class PaymentController {
      */
     @PostMapping("/client/{clientId}")
     @PreAuthorize("hasRole('USER')")
-    public Payment save(@PathVariable Long clientId,
+    public ResponseEntity<Payment> save(@PathVariable Long clientId,
                         @RequestBody RegisterPaymentRequest request) throws Exception{
+        // validamos que la duración sea proporcionada para evitar nullpointers
+        if(request.getDuration() == null) {
+            // Si falta la duración, se responde con un 400 bad request
+            return ResponseEntity.badRequest().build();
+        }
+        //Se toma la fecha de pago enviada o la actual si no se especifica
         LocalDate paymentDate = request.getPaymentDate() != null
                 ? request.getPaymentDate()
                 : LocalDate.now();
+        //calculamos la fecha de vencimiento sumando los días de la duración
         LocalDate expirationDate = paymentDate.plusDays(request.getDuration().getDays());
 
-        return paymentService.registerPayment(clientId, paymentDate, expirationDate, request.getAmount());
+        //delegamos el registro del pago al servicio de pagos
+        Payment payment = paymentService.registerPayment(clientId, paymentDate, expirationDate, request.getAmount());
+        //respondemos con el pago registrado
+        return ResponseEntity.ok(payment);
     }
 
     /**
