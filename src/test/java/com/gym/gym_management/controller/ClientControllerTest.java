@@ -2,6 +2,7 @@ package com.gym.gym_management.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gym.gym_management.model.Client;
+import com.gym.gym_management.model.Payment;
 import com.gym.gym_management.model.Role;
 import com.gym.gym_management.model.User;
 import com.gym.gym_management.service.ClientService;
@@ -18,13 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -142,4 +138,55 @@ class ClientControllerTest {
         // Verificación: se comprueba que el servicio eliminó al cliente correspondiente.
         verify(clientService).deleteClient(id);
     }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void deactivateClientPreservesHistory() throws Exception {
+        // Verifica que al desactivar un cliente se conserve su lista de pagos
+
+        Long id = 1L;
+
+        // Cliente con un pago en su historial
+        Payment payment = new Payment();
+        payment.setAmount(1200.0);
+        List<Payment> payments = new ArrayList<>();
+        payments.add(payment);
+        Client deactivated = new Client(
+                User.builder().id(id).email("maria@example.com").password("pass").role(Role.CLIENT).build(),
+                "Maria", "Gonzales", "123", false, payments);
+
+        when(clientService.deactivateClient(id)).thenReturn(deactivated);
+
+        mockMvc.perform(patch("/clients/{id}/deactivate", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(false))
+                .andExpect(jsonPath("$.payments.length()").value(1));
+
+        verify(clientService).deactivateClient(id);
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void activateClientIdempotent() throws Exception {
+        // Verifica que activar un cliente ya activo no genera cambios adicionales
+
+        Long id = 1L;
+
+        Client activeClient = new Client(
+                User.builder().id(id).email("john@example.com").password("pass").role(Role.CLIENT).build(),
+                "John", "Doe", "123", true, new ArrayList<>());
+
+        when(clientService.activateClient(id)).thenReturn(activeClient);
+
+        mockMvc.perform(patch("/clients/{id}/activate", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(true));
+
+        mockMvc.perform(patch("/clients/{id}/activate", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(true));
+
+        verify(clientService, times(2)).activateClient(id);
+    }
+
 }

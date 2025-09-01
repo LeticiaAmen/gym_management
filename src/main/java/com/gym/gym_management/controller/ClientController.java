@@ -13,10 +13,12 @@ import java.util.List;
  * Controlador REST para gestionar operaciones sobre clientes.
  *
  * Endpoints:
- * - GET    /clients           → Lista todos los clientes.
- * - POST   /clients           → Crea un nuevo cliente (requiere rol USER).
- * - PUT    /clients           → Actualiza un cliente existente.
- * - DELETE /clients/{id}      → Elimina un cliente por id.
+ * - GET    /clients                 → Lista todos los clientes.
+ * - POST   /clients                 → Crea un nuevo cliente (requiere rol USER).
+ * - PUT    /clients                 → Actualiza un cliente existente.
+ * - PATCH  /clients/{id}/deactivate → Desactiva un cliente.
+ * - PATCH  /clients/{id}/activate   → Activa un cliente.
+ * - DELETE /clients/{id}            → Elimina (soft delete) un cliente por id.
  *
  * Relación con los requerimientos:
  * - "Gestión de Clientes (Administradores)": crear, modificar, eliminar clientes.
@@ -68,9 +70,34 @@ public class ClientController {
         clientService.update(client);
     }
 
+    /**
+     * Desactiva un cliente existente.
+     * Acceso: restringido a usuarios con rol "USER".
+     *
+     * @param id identificador del cliente a desactivar.
+     * @return el cliente actualizado con isActive = false.
+     */
+    @PatchMapping("/{id}/deactivate")
+    @PreAuthorize("hasRole('USER')")
+    public Client deactivate(@PathVariable Long id){
+        return clientService.deactivateClient(id);
+    }
 
     /**
-     * Elimina un cliente por su identificador.
+     * Activa un cliente existente de manera idempotente.
+     * Acceso: restringido a usuarios con rol "USER".
+     *
+     * @param id identificador del cliente a activar.
+     * @return el cliente actualizado con isActive = true.
+     */
+    @PatchMapping("/{id}/activate")
+    @PreAuthorize("hasRole('USER')")
+    public Client activate(@PathVariable Long id){
+        return clientService.activateClient(id);
+    }
+
+    /**
+     * Elimina un cliente por su identificador.(soft-delete)
      * Acceso: restringido a usuarios con rol "USER" (administrador en este sistema).
      *
      * @param id identificador del cliente a eliminar.
@@ -82,4 +109,5 @@ public class ClientController {
         clientService.deleteClient(id);
         return ResponseEntity.ok("Se eliminó el cliente con id: " + id);
     }
+
 }

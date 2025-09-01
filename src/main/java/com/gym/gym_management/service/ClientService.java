@@ -52,12 +52,49 @@ public class ClientService {
     }
 
     /**
-     * Elimina un cliente según su identificador.
-     * @param id identificador del cliente a eliminar.
+     * Marca un cliente como inactivo de manera idempotente.
+     * Si el cliente ya está inactivo, no se realizan cambios adicionales.
+     *
+     * @param id identificador del cliente a desactivar.
+     * @return el cliente actualizado tras la operación.
+     */
+    public Client deactivateClient(Long id){
+        Client client = clientRepository.findById(id)
+                .orElseThrow(()-> new IllegalArgumentException("No se encuentra el cliente a desactivar"));
+
+        if (client.isActive()){
+            client.setActive(false);
+            client = clientRepository.save(client);
+        }
+        return client;
+    }
+
+    /**
+     * Marca un cliente como activo de manera idempotente.
+     * Si el cliente ya está activo, no se realizan cambios adicionales.
+     *
+     * @param id identificador del cliente a activar.
+     * @return el cliente actualizado tras la operación.
+     */
+    public Client activateClient(Long id){
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("No se encuentra el cliente a activar"));
+
+        if (!client.isActive()){
+            client.setActive(true);
+            client = clientRepository.save(client);
+        }
+        return client;
+    }
+
+    /**
+     * Elimina (soft-delete) baja lógica de un cliente según su identificador
+     * se delega a deactivateclient para preservar el historial del cliente.
      */
     public void deleteClient(Long id){
-        clientRepository.deleteById(id);
+        deactivateClient(id);
     }
+
 
     /**
      * Actualiza un cliente existente.
