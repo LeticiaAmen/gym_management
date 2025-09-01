@@ -1,5 +1,6 @@
 package com.gym.gym_management.controller;
 
+import com.gym.gym_management.controller.dto.PaymentDTO;
 import com.gym.gym_management.controller.dto.RegisterPaymentRequest;
 import com.gym.gym_management.model.Payment;
 import com.gym.gym_management.service.PaymentService;
@@ -45,8 +46,11 @@ public class PaymentController {
      * @return lista de pagos registrados.
      */
     @GetMapping
-    public List<Payment> findAll(){
-        return paymentService.findAll();
+    public List<PaymentDTO> findAll(){
+        return paymentService.findAll()
+                .stream()
+                .map(PaymentDTO::fromEntity)
+                .toList();
     }
 
 
@@ -58,25 +62,32 @@ public class PaymentController {
      * @return ResponseEntity con el pago si existe, o 404 si no se encuentra.
      */
     @GetMapping("{id}")
-    public ResponseEntity<Payment> findById(@PathVariable Long id){
+    public ResponseEntity<PaymentDTO> findById(@PathVariable Long id){
         Optional<Payment> payment = paymentService.findById(id);
         if(payment.isPresent()){
-            return ResponseEntity.ok(payment.get());
+            return ResponseEntity.ok(PaymentDTO.fromEntity(payment.get()));
         } else {
             return ResponseEntity.notFound().build();
         }
     }
 
     /**
-     * Registra un nuevo pago.
-     * Acceso: Hay que restringir a rol USER para que solo los administradores puedan registrar pagos.
+     * Registra un nuevo pago asociado a un cliente
+     * Acceso: restringido a usuarios con rol USER (en este caso, los administradores).
+     * Flujo:
+     * - Se valida que el request contenga una duración válida (si falta → 400 Bad Request).
+     * - Se toma la fecha de pago enviada o, en su defecto, la fecha actual.
+     * - Se calcula la fecha de vencimiento sumando los días definidos en la duración.
+     * - Se delega el registro del pago al servicio de pagos.
      *
-     * @param payment objeto Payment con la información del pago a registrar.
-     * @return el pago registrado.
+     * @param clientId identificador del cliente al que se registra el pago
+     * @param request objeto con los datos necesarios para el pago
+     * @return el pago registrado en formato DTO
+     * @throws Exception si ocurre un error en el proceso de registro.
      */
     @PostMapping("/client/{clientId}")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<Payment> save(@PathVariable Long clientId,
+    public ResponseEntity<PaymentDTO> save(@PathVariable Long clientId,
                         @RequestBody RegisterPaymentRequest request) throws Exception{
         // validamos que la duración sea proporcionada para evitar nullpointers
         if(request.getDuration() == null) {
@@ -92,8 +103,8 @@ public class PaymentController {
 
         //delegamos el registro del pago al servicio de pagos
         Payment payment = paymentService.registerPayment(clientId, paymentDate, expirationDate, request.getAmount());
-        //respondemos con el pago registrado
-        return ResponseEntity.ok(payment);
+        //respondemos con el pago registrado como DTO
+        return ResponseEntity.ok(PaymentDTO.fromEntity(payment));
     }
 
     /**

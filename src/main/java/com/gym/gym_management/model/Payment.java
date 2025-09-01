@@ -1,5 +1,6 @@
 package com.gym.gym_management.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
@@ -54,6 +55,7 @@ public class Payment {
     // Relación bidireccional: Payment es el lado propietario
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
+    @JsonIgnore //evitamos exponer toda la info del cliente asociado y evitar ciclos recursivos con la lista de payments en cliente
     private Client client;
 
     public Payment() {
