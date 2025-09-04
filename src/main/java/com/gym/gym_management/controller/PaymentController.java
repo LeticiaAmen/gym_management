@@ -5,6 +5,7 @@ import com.gym.gym_management.controller.dto.RegisterPaymentRequest;
 import com.gym.gym_management.model.Payment;
 import com.gym.gym_management.service.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -83,12 +84,11 @@ public class PaymentController {
      * @param clientId identificador del cliente al que se registra el pago
      * @param request objeto con los datos necesarios para el pago
      * @return el pago registrado en formato DTO
-     * @throws Exception si ocurre un error en el proceso de registro.
      */
     @PostMapping("/client/{clientId}")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<PaymentDTO> save(@PathVariable Long clientId,
-                        @RequestBody RegisterPaymentRequest request) throws Exception{
+                        @RequestBody RegisterPaymentRequest request) {
         // validamos que la duración sea proporcionada para evitar nullpointers
         if(request.getDuration() == null) {
             // Si falta la duración, se responde con un 400 bad request
@@ -101,10 +101,25 @@ public class PaymentController {
         //calculamos la fecha de vencimiento sumando los días de la duración
         LocalDate expirationDate = paymentDate.plusDays(request.getDuration().getDays());
 
-        //delegamos el registro del pago al servicio de pagos
-        Payment payment = paymentService.registerPayment(clientId, paymentDate, expirationDate, request.getAmount());
-        //respondemos con el pago registrado como DTO
-        return ResponseEntity.ok(PaymentDTO.fromEntity(payment));
+       try{
+           // se le delega al servicio la lógica de registrar el pago
+           Payment payment = paymentService.registerPayment(clientId, paymentDate, expirationDate, request.getAmount());
+           // si sale bien, se convierte la entidad a un DTO  (para no exponer la entidad completa)
+           // y se retorna una respuesta HTTP 200 OK con el objeto registrado.
+           return ResponseEntity.ok(PaymentDTO.fromEntity(payment));
+
+       }catch (IllegalStateException e ){
+           // Este catch captura casos en los que el estado del sistema impide registrar el pago.
+           // Ejemplo típico: el cliente no existe, está inactivo, o ya tiene un pago vigente.
+           // Se responde con 403 Forbidden porque la acción no está permitida en ese contexto.
+           return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+
+       }catch (Exception e){
+           // Este catch es un "safety net" para cualquier otro error inesperado.
+           // Se responde con 400 Bad Request indicando que la solicitud no se pudo procesar.
+           // En un escenario real, aquí también se podría loggear el error para diagnóstico.
+           return ResponseEntity.badRequest().build();
+       }
     }
 
     /**

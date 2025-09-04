@@ -60,23 +60,40 @@ public class PaymentService {
     /**
      * Registra un pago asociado a un cliente.
      *
-     * @param clientId id del cliente que realiza el pago
-     * @param payment  entidad Payment con la información del pago
-     * @return el pago registrado
-     * @throws Exception si el cliente no existe
+     *  @param clientId id del cliente que realiza el pago
+     * @param paymentDate fecha en que se registra el pago (puede ser actual o proporcionada en el request)
+     * @param expirationDate fecha de vencimiento calculada en base a la duración
+     * @param amount monto del pago
+     * @return el pago registrado en la base de datos
+     * @throws Exception si el cliente no existe en la base de datos
      */
     public Payment registerPayment(Long clientId,
                                    LocalDate paymentDate,
                                    LocalDate expirationDate,
                                    Double amount) throws Exception {
+
+        // Se busca el cliente en la base de datos con su ID
+        // Si no se encuentra, se lanza una excepción
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new Exception("No se encontró el cliente con id: " + clientId));
-       Payment payment = new Payment();
-       payment.setPaymentDate(paymentDate);
-       payment.setExpirationDate(expirationDate);
-       payment.setAmount(amount);
-       payment.setPaymentState(PaymentState.UP_TO_DATE);
+
+        // Se valida que el cliente esté activo.
+        // Si está inactivo, se lanza una IllegalStateException
+        //porque no se debe permitir registrar pagos es este estado.
+        if (!client.isActive()){
+            throw new IllegalStateException("El cliente está inactivo y no puede registrar pagos");
+        }
+
+        // Se crea un nuevo objeto Payment y se setean los datos
+        // todo: contemplar escenarios donde el cliente tenga más de un pago por hacer, y aunque haga uno su estado no debería ser UP_TO_DATE
+        Payment payment = new Payment();
+        payment.setPaymentDate(paymentDate);
+        payment.setExpirationDate(expirationDate);
+        payment.setAmount(amount);
+        payment.setPaymentState(PaymentState.UP_TO_DATE);
+        // Se asocia el pago al cliente (esto asegura que el cliente tenga el historial completo).
         client.registerPayment(payment);
+        // Se guarda el pago en la base de datos y se retorna la entidad persistida.
         return paymentRepository.save(payment);
     }
 
