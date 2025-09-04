@@ -46,6 +46,16 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    // Relación 1:1 con la entidad Client.
+    // - mappedBy = "user" indica que la relación está mapeada por el atributo "user" en la clase Client.
+    // - Esto significa que Client tiene la FK (clave foránea) que enlaza con User.
+    // - @JsonIgnore evita que al serializar un User hacia JSON se incluya también el Client,
+    //   previniendo ciclos infinitos en la serialización (User → Client → User...).
+    // Si el User es un administrador, este campo client será null.
+    @OneToOne(mappedBy = "user")
+    @JsonIgnore
+    private Client client;
+
     public User() {
     }
 
@@ -93,9 +103,25 @@ public class User implements UserDetails {
         return true;
     }
 
+    /**
+     * Indica si el usuario está habilitado para iniciar sesión.
+     *
+     * - Si el usuario tiene rol CLIENT y está vinculado a un objeto Client,
+     *   se valida el estado activo/inactivo del cliente.
+     *   → Si client.isActive() = false, el login será rechazado.
+     *
+     * - Si el usuario es ADMIN (rol USER en este caso), siempre se devuelve true
+     *   ya que los administradores no tienen el atributo "activo".
+     *
+     * Este método lo utiliza Spring Security en el flujo de autenticación para
+     * decidir si el usuario puede loguearse o no.
+     */
     @Override
     public boolean isEnabled() {
-        return true;
+        if (role == Role.CLIENT && client != null) {
+            return client.isActive(); // Solo clientes activos pueden entrar
+        }
+        return true; //para admins siempre true
     }
 
 // === PATRÓN BUILDER (creación fluida de instancias) ===
@@ -178,5 +204,13 @@ public class User implements UserDetails {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public Client getClient() {
+        return client;
+    }
+
+    public void setClient(Client client) {
+        this.client = client;
     }
 }

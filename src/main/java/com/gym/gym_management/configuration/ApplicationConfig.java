@@ -1,10 +1,14 @@
 package com.gym.gym_management.configuration;
 
+import com.gym.gym_management.model.Client;
+import com.gym.gym_management.model.Role;
+import com.gym.gym_management.repository.IClientRepository;
 import com.gym.gym_management.repository.IUserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -33,30 +37,61 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Configuration //Indica que esta clase define configuraciones de spring
 public class ApplicationConfig {
 
-    //repositorio que permite acceder a los usuarios en la base de datos
+    //repositorios que permiten acceder a los usuarios y clientes en la base de datos
     private final IUserRepository userRepository;
+    private final IClientRepository clientRepository;
 
     /**
      * Constructor que recibe el repositorio de usuarios por inyección de dependencias.
      * @param userRepository interfaz para consultar y manipular usuarios en la BD.
+     * @param clientRepository interfaz para consultar la información de clientes
      */
-    public ApplicationConfig(IUserRepository userRepository) {
+    public ApplicationConfig(IUserRepository userRepository, IClientRepository clientRepository) {
         this.userRepository = userRepository;
+        this.clientRepository = clientRepository;
     }
 
     /**
      * Bean que implementa la interfaz UserDetailsService.
-     * Spring Security utiliza este servicio para cargar los datos de un usuario
-     * (email, contraseña, roles) desde la base de datos al momento de autenticarlo.
      *
-     * @return una función lambda que busca un usuario por su email.
-     * @throws UsernameNotFoundException si el usuario no existe en la base de datos.
+     * Spring Security invoca este servicio cuando un usuario intenta iniciar sesión.
+     * Su función es obtener desde la base de datos los datos del usuario (email, contraseña y roles).
+     * Estos datos luego se usan para validar las credenciales y aplicar las restricciones de seguridad.
+     *
+     * Flujo:
+     * - Se busca el usuario en la base de datos a partir de su email (username).
+     * - Si no existe, se lanza una UsernameNotFoundException.
+     * - Si el usuario es un CLIENTE, se valida además si su cuenta está activa.
+     *   → Si el cliente está inactivo, se lanza DisabledException para impedir su acceso.
+     * - Si pasa las validaciones, se retorna el objeto `user` que Spring Security utilizará.
+     *
+     * @return implementación de UserDetailsService basada en una expresión lambda.
+     * @throws UsernameNotFoundException si no existe el usuario en la base de datos.
+     * @throws DisabledException si el cliente está marcado como inactivo.
      */
     @Bean
     public UserDetailsService userDetailsService() {
-        //Carga un usuario desde la bd a partir de su email
-        return username -> userRepository.findByEmail(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        // Se retorna una lambda que implementa el método loadUserByUsername de UserDetailsService.
+        return username -> {
+            // Busca el usuario en la BD
+            // Si no lo encuentra, lanza una excepción específica que Spring Security entiende.
+            var user = userRepository.findByEmail(username)
+                    .orElseThrow(()-> new UsernameNotFoundException("Usuario no encontrado"));
+
+            // Si el usuario pertenece al rol CLIENTE, se hace una validación extra:
+            if (user.getRole() == Role.CLIENT){
+                // Se busca el cliente asociado a ese usuario (en otra tabla/entidad).
+                Client client = clientRepository.findByUserEmail(user.getEmail());
+
+                // Si existe y está inactivo, no se permite iniciar sesión.
+                if (client != null && !client.isActive()){
+                    throw new DisabledException("Cuenta de usuario desactivada");
+                }
+            }
+            // Si no hay problemas, se retorna el usuario.
+            // Este objeto debe implementar UserDetails para que Spring Security pueda usarlo.
+            return user;
+        };
     }
 
     /**
