@@ -20,6 +20,7 @@ import java.util.Optional;
  * Endpoints:
  * - GET    /payments         → Lista todos los pagos.
  * - GET    /payments/{id}    → Busca un pago por su id.
+ *  - GET    /payments/client/{clientId} → Lista los pagos de un cliente.
  * - POST   /payments/client/{clientId} → Registra un nuevo pago para un cliente.
  * - DELETE /payments/{id}             → Elimina un pago por su id.
  *
@@ -70,6 +71,21 @@ public class PaymentController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    /**
+     * Obtiene todos los pagos de un cliente específico
+     * Acceso: autenticado
+     *
+     * @param clientId identificador del cliente
+     * @return lista de pagos en formato DTO
+     */
+    @GetMapping("/client/{clientId}")
+    public List<PaymentDTO> findByClientId(@PathVariable Long clientId){
+        return paymentService.getPaymentsByClientId(clientId)
+                .stream()
+                .map(PaymentDTO::fromEntity)
+                .toList();
     }
 
     /**
