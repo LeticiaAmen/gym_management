@@ -1,5 +1,6 @@
 package com.gym.gym_management.service;
 
+import com.gym.gym_management.controller.dto.ClientUpdateRequestDTO;
 import com.gym.gym_management.model.Client;
 import com.gym.gym_management.repository.IClientRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -95,17 +96,22 @@ public class ClientService {
         deactivateClient(id);
     }
 
-
     /**
-     * Actualiza un cliente existente.
-     * En este diseño, es equivalente a saveClient(), pero se mantiene para claridad semántica.
-     * @param client objeto Client con los datos actualizados.
+     * Actualiza únicamente los datos de perfil de un cliente sin modificar
+     * la información del usuario asociado (email y contraseña).
+     *
+     * @param id identificador del cliente a actualizar.
+     * @param req datos nuevos de perfil.
+     * @return el cliente actualizado.
      */
-    public void update(Client client){
-        if (client.getUser() != null && client.getUser().getPassword()!= null){
-           client.getUser().setPassword(passwordEncoder.encode(client.getUser().getPassword()));
-        }
-        clientRepository.save(client);
+
+    public Client updateProfile(Long id, ClientUpdateRequestDTO req){
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("No se encuentra el cliente a editar"));
+        client.setFirstName(req.getFirstName());
+        client.setLastName(req.getLastName());
+        client.setTelephone(req.getTelephone());
+        return clientRepository.save(client);
     }
 
 }

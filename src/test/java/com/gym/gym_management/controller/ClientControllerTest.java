@@ -1,6 +1,7 @@
 package com.gym.gym_management.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gym.gym_management.controller.dto.ClientUpdateRequestDTO;
 import com.gym.gym_management.model.Client;
 import com.gym.gym_management.model.Payment;
 import com.gym.gym_management.model.Role;
@@ -99,24 +100,47 @@ class ClientControllerTest {
 
     @Test
     @WithMockUser(roles = "USER")
+        // Indica que el test se ejecuta con un usuario simulado que tiene el rol USER,
+        // cumpliendo con la restricción de seguridad (@PreAuthorize("hasRole('USER')")).
     void update() throws Exception{
-        // Valida que el endpoint actualice un cliente existente.
+        // Valida que el endpoint actualice solo los datos de perfil y no modifique el usuario asociado.
 
-        // Preparación de datos: se construye un cliente con información nueva.
-        Client client = new Client(User.builder().id(1L).email("john@example.com").password("pass").role(Role.CLIENT).build(),
-                "John", "Doe", "123", true, new ArrayList<>());
+        Long id = 1L;
+        // Se crea un usuario asociado al cliente, con email y contraseña definidos.
+        User user = User.builder()
+                .id(id)
+                .email("john@example.com")
+                .password("pass")
+                .role(Role.CLIENT)
+                .build();
 
-        // Configuración del mock: no se realiza ninguna acción adicional al actualizar.
-        doNothing().when(clientService).update(any(Client.class));
+        // Cliente actualizado: contiene cambios en nombre/teléfono, pero mantiene email y password del user.
+        Client updatedClient = new Client(user, "Johnny", "Doe", "456", true, new ArrayList<>());
 
-        // Llamada a MockMvc: se envía la información mediante una solicitud PUT.
-        mockMvc.perform(put("/clients")
+        // DTO con los datos que se envían en la petición para actualizar el perfil.
+        ClientUpdateRequestDTO request = new ClientUpdateRequestDTO("Johnny", "Doe", "456");
+
+        // Se simula el comportamiento del servicio: cuando se llame a updateProfile con el id dado,
+        // devolverá el cliente actualizado.
+        when(clientService.updateProfile(eq(id), any(ClientUpdateRequestDTO.class))).thenReturn(updatedClient);
+
+        // Se ejecuta la petición HTTP PUT al endpoint /clients/{id}, enviando el JSON del DTO.
+        mockMvc.perform(put("/clients/{id}", id)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(client)))
-                .andExpect(status().isOk());
+                        .content(objectMapper.writeValueAsString(request)))
+                // Se espera una respuesta 200 OK.
+                .andExpect(status().isOk())
+                // se valida que el email del usuario no haya cambiado
+                .andExpect(jsonPath("$.user.email").value("john@example.com"))
+                // se valida que la contraseña tampoco haya cambiado
+                .andExpect(jsonPath("$.user.password").value("pass"))
+               // se valida que el los campos modificados sí se hayan actualizado
+                .andExpect(jsonPath("$.firstName").value("Johnny"))
+                .andExpect(jsonPath("$.telephone").value("456"));
 
-        // Verificación: se asegura que el servicio recibió el cliente para actualizarlo.
-        verify(clientService).update(any(Client.class));
+        //// Verifica que efectivamente se llamó al método updateProfile del servicio con los parámetros esperados.
+        verify(clientService).updateProfile(eq(id), any(ClientUpdateRequestDTO.class));
+
     }
 
     @Test

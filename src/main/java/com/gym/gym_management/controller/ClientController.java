@@ -1,5 +1,6 @@
 package com.gym.gym_management.controller;
 
+import com.gym.gym_management.controller.dto.ClientUpdateRequestDTO;
 import com.gym.gym_management.model.Client;
 import com.gym.gym_management.service.ClientService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +16,7 @@ import java.util.List;
  * Endpoints:
  * - GET    /clients                 → Lista todos los clientes.
  * - POST   /clients                 → Crea un nuevo cliente (requiere rol USER).
- * - PUT    /clients                 → Actualiza un cliente existente.
+ * - PUT    /clients/{id}            → Actualiza un cliente existente.
  * - PATCH  /clients/{id}/deactivate → Desactiva un cliente.
  * - PATCH  /clients/{id}/activate   → Activa un cliente.
  * - DELETE /clients/{id}            → Elimina (soft delete) un cliente por id.
@@ -59,15 +60,17 @@ public class ClientController {
     }
 
     /**
-     * Actualiza un cliente existente.
+     * Actualiza los datos de perfil (nombre, apellido y teléfono) de un cliente existente.
      * Acceso: restringido a usuarios con rol "USER" (administrador en este sistema).
      *
-     * @param client cuerpo JSON con los datos actualizados (debe incluir el id).
+     * @param id identificador del cliente a modificar.
+     * @param request datos de perfil a actualizar.
+     *@return el cliente actualizado.
      */
-    @PutMapping
+    @PutMapping("/{id}")
     @PreAuthorize("hasRole('USER')")
-    public void update(@RequestBody Client client){
-        clientService.update(client);
+    public Client update(@PathVariable Long id, @RequestBody ClientUpdateRequestDTO request){
+        return clientService.updateProfile(id, request);
     }
 
     /**
