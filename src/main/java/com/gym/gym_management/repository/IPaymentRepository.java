@@ -4,6 +4,7 @@ import com.gym.gym_management.model.Payment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Repositorio JPA para la entidad Payment.
@@ -25,4 +26,7 @@ public interface IPaymentRepository extends JpaRepository<Payment, Long> {
     // Busca todos los pagos asociados a un cliente mediante su ID.
     //@return lista de pagos realizados por el cliente, vacía si no tiene pagos.
     List<Payment> findByClientId(Long clientId);
+
+    //Obtiene el pago más reciente de un cliente ordenado por fecha de vencimiento descendente
+    Optional<Payment> findTopByClientIdOrderByExpirationDateDesc(Long clientId);
 }

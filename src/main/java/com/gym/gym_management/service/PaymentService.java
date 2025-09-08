@@ -48,6 +48,28 @@ public class PaymentService {
     }
 
     /**
+     * Obtiene el pago más reciente de un lciente ordenado por fecha de vencimiento
+     * Si el pago está vencido respecto a la fecha actual, se actualiza su estado a EXPIRED
+     *
+     * @param clientId identificador del cliente
+     * @return el último pago o null si no existen pagos.
+     */
+    public Payment getLatestPayment(Long clientId){
+        Optional<Payment> paymentOpt = paymentRepository.findTopByClientIdOrderByExpirationDateDesc(clientId);
+        if (paymentOpt.isEmpty()) {
+            return null;
+        }
+        Payment payment = paymentOpt.get();
+        if (payment.getExpirationDate() != null && payment.getExpirationDate().isBefore(LocalDate.now())){
+            if (payment.getPaymentState() != PaymentState.EXPIRED){
+                payment.setPaymentState(PaymentState.EXPIRED);
+                paymentRepository.save(payment);
+            }
+        }
+        return payment;
+    }
+
+    /**
      * Registra un nuevo pago en la base de datos.
      *
      * @param payment entidad Payment a registrar.

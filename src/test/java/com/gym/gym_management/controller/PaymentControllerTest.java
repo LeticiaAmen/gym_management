@@ -79,6 +79,40 @@ class PaymentControllerTest {
     }
 
     @Test
+    @WithMockUser
+    void getLatestPaymentStatusUpToDate() throws Exception {
+        Payment payment = new Payment();
+        payment.setExpirationDate(LocalDate.now().plusDays(5));
+        payment.setPaymentState(PaymentState.UP_TO_DATE);
+
+        when(paymentService.getLatestPayment(1L)).thenReturn(payment);
+
+        mockMvc.perform(get("/payments/client/{clientId}/status", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paymentState").value(PaymentState.UP_TO_DATE.toString()))
+                .andExpect(jsonPath("$.expirationDate").value(payment.getExpirationDate().toString()));
+
+        verify(paymentService).getLatestPayment(1L);
+    }
+
+    @Test
+    @WithMockUser
+    void getLatestPaymentStatusExpired() throws Exception {
+        Payment payment = new Payment();
+        payment.setExpirationDate(LocalDate.now().minusDays(1));
+        payment.setPaymentState(PaymentState.EXPIRED);
+        when(paymentService.getLatestPayment(2L)).thenReturn(payment);
+
+        mockMvc.perform(get("/payments/client/{clientId}/status", 2L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paymentState").value(PaymentState.EXPIRED.toString()))
+                .andExpect(jsonPath("$.expirationDate").value(payment.getExpirationDate().toString()));
+
+        verify(paymentService).getLatestPayment(2L);
+    }
+
+
+    @Test
     @WithMockUser(roles = "USER")
     void registerPayment() throws Exception {
         // Simula que el test se ejecuta con un usuario autenticado con rol USER

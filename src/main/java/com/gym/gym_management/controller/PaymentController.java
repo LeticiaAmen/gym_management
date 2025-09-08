@@ -20,7 +20,8 @@ import java.util.Optional;
  * Endpoints:
  * - GET    /payments         → Lista todos los pagos.
  * - GET    /payments/{id}    → Busca un pago por su id.
- *  - GET    /payments/client/{clientId} → Lista los pagos de un cliente.
+ * - GET    /payments/client/{clientId} → Lista los pagos de un cliente.
+ * - GET    /payments/client/{clientId}/status → Obtiene el estado del pago más reciente.
  * - POST   /payments/client/{clientId} → Registra un nuevo pago para un cliente.
  * - DELETE /payments/{id}             → Elimina un pago por su id.
  *
@@ -86,6 +87,25 @@ public class PaymentController {
                 .stream()
                 .map(PaymentDTO::fromEntity)
                 .toList();
+    }
+
+    /**
+     * Obtiene el estado del pago más reciente de un cliente
+     * Acceso: autenticado
+     *
+     * @param clientId identificador del cliente
+     * @return estado del pago más reciente o 404 si el cliente no tiene pagos
+     */
+    @GetMapping("/client/{clientId}/status")
+    public ResponseEntity<PaymentDTO> getLatestPaymentStatus(@PathVariable Long clientId){
+        Payment payment = paymentService.getLatestPayment(clientId);
+        if (payment == null){
+            return ResponseEntity.notFound().build();
+        }
+        PaymentDTO dto = new PaymentDTO();
+        dto.setPaymentState(payment.getPaymentState());
+        dto.setExpirationDate(payment.getExpirationDate());
+        return ResponseEntity.ok(dto);
     }
 
     /**
