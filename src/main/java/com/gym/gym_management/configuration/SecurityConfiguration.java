@@ -1,6 +1,7 @@
 package com.gym.gym_management.configuration;
 
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,9 +19,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Configuración de seguridad de Spring Security para la aplicación.
  *
- * Se definen dos cadenas de filtros:
- * - Una para los endpoints REST que siguen utilizando autenticación JWT
- * - Otra para las páginas web que usan sesiones y formulario de login
+ * Objetivo:
+ *  - Proteger los endpoints REST de la aplicación usando autenticación con JWT.
+ *  - Permitir el acceso público a los recursos estáticos (HTML, CSS, JS, imágenes).
+ *  - Evitar redirecciones al login por defecto de Spring Security (devolvemos 401 en su lugar).
+ *  - Definir reglas claras de autorización para separar qué rutas son públicas
+ *    y cuáles requieren autenticación.
  */
 
 @Configuration //Marca la clase como configuración de spring
@@ -31,7 +35,7 @@ public class SecurityConfiguration {
     // Filtro que intercepta cada request y valida el JWT
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    //Proveedor de autenticación configurado en ApplicationConfig
+    //Proveedor de autenticación (valida usuarios contra la BD con PasswordEncoder)
     private final AuthenticationProvider authenticationProvider;
 
     // Constructor manual que inyecta el filtro JWT y el proveedor de autenticación.
@@ -43,52 +47,58 @@ public class SecurityConfiguration {
         this.authenticationProvider = authenticationProvider;
     }
 
-
     /**
-     * Cadena de filtros para los endpoints REST protegidos con JWT
-     * CSRF se deshabilita y las sesiones se mantienen sin estado
+     * Define la cadena de filtros principal de seguridad.
+     * Aquí configuramos todas las reglas de autorización y autenticación.
      */
     @Bean
-    public SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-
-                .securityMatcher("/auth/**", "/clients/**", "/payments/**", "/users/**")
+                // Deshabilitamos CSRF porque usamos JWT (API sin estado, no formularios HTML clásicos).
                 .csrf(AbstractHttpConfigurer::disable)
 
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/register").hasRole("USER")
-                        .anyRequest().authenticated()
-                )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .authenticationProvider(authenticationProvider)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        return http.build();
-    }
+                // Definimos política de sesión: sin estado
+                // Cada request debe traer su JWT, no se guarda nada en la sesión del servidor
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-    /**
-     * Cadena de filtros para las páginas web
-     * Se habilita login basado en formulario y se crean sesiones solo cuando es necesario
-     */
-    @Bean
-    public SecurityFilterChain webSecurity(HttpSecurity http) throws Exception {
-        http
+                // definimos que rutas son públicas y cuales requieren autenticación
                 .authorizeHttpRequests(auth -> auth
+                        //Recursos estáticos comunes (favicosn, css. js, img)
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers("/", "/index.html", "/favicon.ico",
                                 "/css/**", "/js/**", "/img/**", "/assets/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/login").permitAll()
-                        .requestMatchers("/error", "/error/**").permitAll()
+
+                        // Páginas HTML del frontend (panel admin y cliente) también son públicas
+                        // la seguridad real está en la api, no es estos html
+                        .requestMatchers("/admin/**", "/client/**").permitAll()
+
+                        //endpoint de login post público
+                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+
+                        // endpoints de la API que requieren autenticación con JWT
+                        .requestMatchers("/auth/**", "/clients/**", "/payments/**", "/users/**").authenticated()
+
+                        //cualquier otra ruta no contemplada requiere autenticación
                         .anyRequest().authenticated()
                 )
-                .formLogin(form -> form.loginPage("/login").permitAll())
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                )
-                .authenticationProvider(authenticationProvider);
-        // CSRF se mantiene habilitado por defecto para las peticiones de formulario
+                //Deshabilitamos los mecanismos de login tradicionales de Spring (formLogin y httpBasic).
+                // Solo usamos JWT.
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+
+                // Si falta autenticación o el token es inválido  devolvemos 401 en lugar de redirigir a /login.
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(
+                        (req, res, e) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+                ))
+
+                //Registramos el AuthenticationProvider (usa UserDetailsService + PasswordEncoder)
+                .authenticationProvider(authenticationProvider)
+
+                //Agregamos el filtro JWT ANTES del filtro estándar de Spring (UsernamePasswordAuthenticationFilter).
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        //Finalmente devolvemos la cadena de seguridad configurada
         return http.build();
     }
+
 }
