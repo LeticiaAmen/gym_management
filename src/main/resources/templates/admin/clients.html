@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
-<th:block th:replace="base :: * { pageTitle = ${pageTitle}, content = ~{::content} }">
+<th:block
+        th:replace="~{base :: layout(pageTitle=${pageTitle}, content=~{::content})}">
     <th:block th:fragment="content">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1 class="h4">Clientes</h1>

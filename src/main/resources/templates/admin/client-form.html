@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
-<th:block th:replace="base :: * { pageTitle = ${pageTitle}, content = ~{::content} }">
+<th:block
+        th:replace="~{base :: layout(pageTitle=${pageTitle}, content=~{::content})}">
     <th:block th:fragment="content">
         <form th:action="@{/admin/clients}" th:object="${client}" method="post" class="card p-4 shadow-sm">
             <input type="hidden" th:field="*{id}"/>

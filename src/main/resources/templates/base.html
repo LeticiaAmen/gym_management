@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<html lang="es" xmlns:th="http://www.thymeleaf.org"
+      th:fragment="layout(pageTitle, content)">
 <th:block th:replace="fragments/_head :: head(${pageTitle})"></th:block>
 <body>
 <th:block th:replace="fragments/_navbar :: navbar"></th:block>

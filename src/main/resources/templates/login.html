@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
-<th:block th:replace="base :: * {
-  pageTitle = 'Ingresar',
-  content = ~{::content} }">
+<th:block
+        th:replace="~{base :: layout(pageTitle='Ingresar', content=~{::content})}">
   <th:block th:fragment="content">
     <div class="row justify-content-center">
       <div class="col-12 col-md-5">
