@@ -1,108 +1,21 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Gym Management</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link href="css/style.css" rel="stylesheet">
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Gym | Iniciar sesión</title>
+    <link rel="stylesheet" href="/css/base.css">
 </head>
 <body>
-<div class="app" id="app">
-    <!-- Sidebar -->
-    <aside>
-        <div class="brand">
-            <div class="logo">GM</div>
-            <h1>Gym Management</h1>
-        </div>
-        <nav class="nav">
-            <a href="#" class="active">Clientes</a>
-        </nav>
-    </aside>
-
-    <!-- Contenido -->
-    <main>
-        <header class="header">
-            <div class="search">
-                <input id="globalSearch" placeholder="Buscar en todo… (Ctrl + K)" />
-            </div>
-            <div class="right-controls">
-                <button class="btn" id="btnAddClient">➕ Nuevo cliente</button>
-                <button class="btn" id="btnRefresh">⟳ Actualizar</button>
-            </div>
-        </header>
-
-        <section class="grid" id="dashboard">
-            <!-- KPIs -->
-            <article class="card">
-                <h3>Total de clientes</h3>
-                <div class="stat" id="statTotal">0</div>
-            </article>
-            <article class="card">
-                <h3>Membresías activas</h3>
-                <div class="stat" id="statActive">0</div>
-            </article>
-            <article class="card">
-                <h3>Pagos vencidos</h3>
-                <div class="stat" id="statOverdue">0</div>
-            </article>
-
-            <!-- Tabla -->
-            <div class="panel" id="panelClientes">
-                <div class="panel-header">
-                    <h2>Clientes</h2>
-                    <input type="text" id="filterInput" placeholder="Filtrar por nombre/correo" />
-                </div>
-                <div style="overflow:auto;">
-                    <table>
-                        <thead>
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Email</th>
-                            <th>Teléfono</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                        </thead>
-                        <tbody id="clientsTbody">
-                        <tr><td colspan="5" style="color:var(--muted);padding:18px;">Cargando clientes…</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-    </main>
-</div>
-
-<!-- Modal Cliente -->
-<dialog id="clientModal">
-    <form method="dialog" id="clientForm">
-        <div class="modal-header">
-            <h3 id="clientModalTitle">Nuevo cliente</h3>
-            <button class="btn" type="button" id="closeModal">✖</button>
-        </div>
-        <div class="modal-body">
-            <input type="hidden" id="clientId" />
-            <input id="clientName" required placeholder="Nombre completo" />
-            <input id="clientEmail" type="email" required placeholder="Correo" />
-            <input id="clientPhone" placeholder="Teléfono" />
-            <select id="clientStatus">
-                <option value="active">Activa</option>
-                <option value="paused">Pausada</option>
-                <option value="overdue">Vencida</option>
-            </select>
-        </div>
-        <div class="modal-actions">
-            <button class="btn" type="reset">Limpiar</button>
-            <button class="btn primary" id="saveClient" type="submit">Guardar</button>
-        </div>
+<main class="card">
+    <h1>Iniciar sesión</h1>
+    <form id="loginForm">
+        <input type="email" id="email" placeholder="Correo" required>
+        <input type="password" id="password" placeholder="Contraseña" required>
+        <button>Entrar</button>
+        <p id="error" class="error"></p>
     </form>
-</dialog>
+</main>
 
-<div class="toast" id="toast"></div>
-
-<script src="js/app.js"></script>
 </body>
 </html>
