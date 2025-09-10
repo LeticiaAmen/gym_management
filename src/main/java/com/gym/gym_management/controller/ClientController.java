@@ -37,10 +37,11 @@ public class ClientController {
 
     /**
      * Obtiene la lista completa de clientes.
-     * Acceso: autenticado (según SecurityConfiguration).
+     * Acceso: solo usuarios con rol USER (administrador).
      * @return lista de entidades Client.
      */
     @GetMapping
+    @PreAuthorize("hasRole('USER')")
     public List<Client> findAll(){
         return clientService.findAll();
     }
