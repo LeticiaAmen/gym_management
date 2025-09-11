@@ -16,4 +16,7 @@ public interface IClientRepository extends JpaRepository<Client, Long> {
     Client findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    // Nuevo: para validar duplicados excluyendo el propio registro
+    boolean existsByEmailAndIdNot(String email, Long id);
 }

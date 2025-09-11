@@ -57,27 +57,27 @@ public class SecurityConfiguration {
 
                 // Reglas de autorización
                 .authorizeHttpRequests(auth -> auth
-                        // Recursos estáticos comunes (favicon, css, js, img)
+                        // Recursos estáticos
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers("/", "/index.html", "/favicon.ico",
                                 "/css/**", "/js/**", "/img/**", "/assets/**").permitAll()
 
-                        // HTML del panel admin puede servir público; la API está protegida por JWT+RBAC.
+                        // Permitir manejador de errores
+                        .requestMatchers("/error").permitAll()
+
+                        // HTML admin (el backend API sigue protegido por JWT)
                         .requestMatchers("/admin/**").permitAll()
 
-                        // Endpoint público para obtener JWT
+                        // Auth pública
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
 
-                        // Endpoints de gestión ADMIN-only (prefijo actual /api/)
+                        // API protegida
                         .requestMatchers("/api/clients/**").hasRole("ADMIN")
                         .requestMatchers("/api/payments/**").hasRole("ADMIN")
                         .requestMatchers("/api/reports/**").hasRole("ADMIN")
-                        // Compatibilidad si existieran rutas sin prefijo /api
                         .requestMatchers("/clients/**").hasRole("ADMIN")
                         .requestMatchers("/payments/**").hasRole("ADMIN")
                         .requestMatchers("/reports/**").hasRole("ADMIN")
-
-                        // Cualquier otra ruta requiere autenticación
                         .anyRequest().authenticated()
                 )
                 // Deshabilitamos mecanismos de login tradicionales de Spring. Usamos solo JWT.

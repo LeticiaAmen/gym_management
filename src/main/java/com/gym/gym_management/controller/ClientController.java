@@ -65,6 +65,13 @@ public class ClientController {
         return ResponseEntity.noContent().build();
     }
 
+    // Activar nuevamente
+    @PostMapping("/{id}/activate")
+    public ResponseEntity<Void> activate(@PathVariable Long id) {
+        clientService.activate(id);
+        return ResponseEntity.noContent().build();
+    }
+
     // Pausar suscripción
     @PostMapping("/{id}/pause")
     public ResponseEntity<ClientDTO> pause(

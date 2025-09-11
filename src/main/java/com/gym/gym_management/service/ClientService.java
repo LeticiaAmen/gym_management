@@ -4,7 +4,9 @@ import com.gym.gym_management.controller.dto.ClientDTO;
 import com.gym.gym_management.model.Client;
 import com.gym.gym_management.repository.IClientRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -33,6 +35,10 @@ public class ClientService {
     }
 
     public ClientDTO create(ClientDTO dto) {
+        // Validación de email único
+        if (dto.getEmail() != null && clientRepository.existsByEmail(dto.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El mail ya está registrado");
+        }
         Client client = fromDTO(dto);
         client.setActive(true);
         Client saved = clientRepository.save(client);
@@ -43,6 +49,11 @@ public class ClientService {
     public ClientDTO update(Long id, ClientDTO dto) {
         Client client = clientRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+
+        // Validación de email único (excluye el propio id)
+        if (dto.getEmail() != null && clientRepository.existsByEmailAndIdNot(dto.getEmail(), id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El mail ya está registrado");
+        }
 
         Client original = copyOf(client); // Para auditoría
         updateClientFromDTO(client, dto);
@@ -59,6 +70,14 @@ public class ClientService {
         client.setActive(false);
         clientRepository.save(client);
         auditService.logClientDeactivation(client);
+    }
+
+    public void activate(Long id) {
+        Client client = clientRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+        client.setActive(true);
+        clientRepository.save(client);
+        // TODO: agregar log de auditoría específico si se requiere
     }
 
     public ClientDTO pause(Long id, LocalDate from, LocalDate to, String reason) {
