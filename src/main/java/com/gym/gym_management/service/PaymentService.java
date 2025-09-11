@@ -1,156 +1,147 @@
 package com.gym.gym_management.service;
 
-import com.gym.gym_management.model.Client;
-import com.gym.gym_management.model.Payment;
-import com.gym.gym_management.model.PaymentState;
-import com.gym.gym_management.repository.IClientRepository;
+import com.gym.gym_management.controller.dto.PaymentDTO;
+import com.gym.gym_management.model.*;
 import com.gym.gym_management.repository.IPaymentRepository;
+import com.gym.gym_management.repository.IClientRepository;
+import com.gym.gym_management.repository.IUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Servicio que encapsula la lógica de negocio relacionada con pagos.
- *
- * Funciones principales:
- * - Consultar pagos por cliente.
- * - Registrar un nuevo pago.
- * - Consultar todos los pagos o buscar por ID.
- * - Eliminar un pago con validación previa de existencia.
- *
- * Relación con los requerimientos:
- * - "Historial de Pagos" (Clientes): permite consultar pagos asociados a un cliente.
- * - "Panel de Administrador": permite registrar y eliminar pagos.
- * - Soporta la funcionalidad de "Recordatorios Automáticos de Pago"
- *   al exponer datos de vencimiento a otras capas de la aplicación.
- */
 @Service
 public class PaymentService {
-    // Repositorio para acceder a la información de pagos en la base de datos.
+
     @Autowired
     private IPaymentRepository paymentRepository;
 
-    // Repositorio de clientes para vincular pagos a un cliente existente
     @Autowired
     private IClientRepository clientRepository;
 
-    /**
-     * Obtiene todos los pagos asociados a un cliente específico.
-     *
-     * @param clientId identificador del cliente.
-     * @return lista de pagos de ese cliente.
-     */
-    public List<Payment> getPaymentsByClientId(Long clientId){
-        return paymentRepository.findByClientId(clientId);
+    @Autowired
+    private IUserRepository userRepository;
+
+    @Autowired
+    private AuditService auditService;
+
+    // Registrar pago con validaciones de dominio e idempotencia
+    public PaymentDTO registerPayment(PaymentDTO dto) {
+        if (dto.getAmount() == null || dto.getAmount() <= 0) {
+            throw new IllegalArgumentException("El monto debe ser mayor a 0");
+        }
+        if (dto.getMonth() == null || dto.getMonth() < 1 || dto.getMonth() > 12) {
+            throw new IllegalArgumentException("El mes debe estar entre 1 y 12");
+        }
+        if (dto.getYear() == null || dto.getYear() < 2000) {
+            throw new IllegalArgumentException("El año debe ser >= 2000");
+        }
+        var client = clientRepository.findById(dto.getClientId())
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+        if (!client.isActive()) {
+            throw new IllegalStateException("El cliente está inactivo");
+        }
+        // Idempotencia por período (ignorando pagos anulados)
+        if (paymentRepository.existsByClient_IdAndMonthAndYearAndVoidedFalse(dto.getClientId(), dto.getMonth(), dto.getYear())) {
+            throw new IllegalStateException("Ya existe un pago válido para ese período");
+        }
+        // Fecha de pago (opcional). Puedes prohibir futura si el negocio lo requiere
+        if (dto.getPaymentDate() != null && dto.getPaymentDate().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("La fecha de pago no puede ser futura");
+        }
+
+        Payment payment = fromDTO(dto);
+        payment.setClient(client);
+        payment.setState(PaymentState.UP_TO_DATE);
+        if (payment.getPaymentDate() == null) {
+            payment.setPaymentDate(LocalDate.now());
+        }
+
+        Payment saved = paymentRepository.save(payment);
+        auditService.logPaymentCreation(saved); // Auditoría mínima
+        return toDTO(saved);
     }
 
-    /**
-     * Obtiene el pago más reciente de un lciente ordenado por fecha de vencimiento
-     * Si el pago está vencido respecto a la fecha actual, se actualiza su estado a EXPIRED
-     *
-     * @param clientId identificador del cliente
-     * @return el último pago o null si no existen pagos.
-     */
-    public Payment getLatestPayment(Long clientId){
-        Optional<Payment> paymentOpt = paymentRepository.findTopByClientIdOrderByExpirationDateDesc(clientId);
-        if (paymentOpt.isEmpty()) {
-            return null;
+    // Consulta con filtros + paginación
+    public Page<PaymentDTO> findPayments(Long clientId, LocalDate from, LocalDate to, PaymentState state, Pageable pageable) {
+        return paymentRepository.findByFilters(clientId, from, to, state, pageable)
+                .map(this::toDTO);
+    }
+
+    public Optional<PaymentDTO> findDTOById(Long id) {
+        return paymentRepository.findById(id).map(this::toDTO);
+    }
+
+    // Anular pago con auditoría y admin actual
+    public PaymentDTO voidPayment(Long id, String reason) {
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pago no encontrado"));
+        if (payment.isVoided() || payment.getState() == PaymentState.VOIDED) {
+            throw new IllegalStateException("El pago ya fue anulado");
         }
-        Payment payment = paymentOpt.get();
-        if (payment.getExpirationDate() != null && payment.getExpirationDate().isBefore(LocalDate.now())){
-            if (payment.getPaymentState() != PaymentState.EXPIRED){
-                payment.setPaymentState(PaymentState.EXPIRED);
-                paymentRepository.save(payment);
-            }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long adminId = null;
+        if (auth != null) {
+            String email = auth.getName();
+            adminId = userRepository.findByEmail(email).map(User::getId).orElse(null);
         }
+        payment.setVoided(true);
+        payment.setState(PaymentState.VOIDED);
+        payment.setVoidedAt(LocalDateTime.now());
+        payment.setVoidedBy(adminId);
+        payment.setVoidReason(reason);
+
+        Payment saved = paymentRepository.save(payment);
+        auditService.logPaymentVoid(saved, reason);
+        return toDTO(saved);
+    }
+
+    // Recordatorios (utilizados por EmailService cuando está habilitado)
+    public List<Payment> findExpiringPayments() {
+        return paymentRepository.findByExpirationDateAndPaymentState(
+                LocalDate.now().plusDays(3),
+                PaymentState.UP_TO_DATE
+        );
+    }
+
+    public List<Payment> findOverduePayments() {
+        return paymentRepository.findByExpirationDateBeforeAndPaymentState(
+                LocalDate.now(),
+                PaymentState.UP_TO_DATE
+        );
+    }
+
+    // Mapeos
+    private PaymentDTO toDTO(Payment payment) {
+        PaymentDTO dto = new PaymentDTO();
+        dto.setId(payment.getId());
+        dto.setClientId(payment.getClient().getId());
+        dto.setAmount(payment.getAmount());
+        dto.setMethod(payment.getMethod());
+        dto.setMonth(payment.getMonth());
+        dto.setYear(payment.getYear());
+        dto.setPaymentDate(payment.getPaymentDate());
+        dto.setState(payment.getState());
+        dto.setVoided(payment.isVoided());
+        dto.setVoidedBy(payment.getVoidedBy());
+        dto.setVoidReason(payment.getVoidReason());
+        return dto;
+    }
+
+    private Payment fromDTO(PaymentDTO dto) {
+        Payment payment = new Payment();
+        payment.setAmount(dto.getAmount());
+        payment.setMethod(dto.getMethod());
+        payment.setMonth(dto.getMonth());
+        payment.setYear(dto.getYear());
+        payment.setPaymentDate(dto.getPaymentDate());
         return payment;
     }
-
-    /**
-     * Registra un nuevo pago en la base de datos.
-     *
-     * @param payment entidad Payment a registrar.
-     * @return el pago registrado.
-     */
-    public Payment registerPayment(Payment payment){
-        return paymentRepository.save(payment);
-    }
-
-    /**
-     * Registra un pago asociado a un cliente.
-     *
-     *  @param clientId id del cliente que realiza el pago
-     * @param paymentDate fecha en que se registra el pago (puede ser actual o proporcionada en el request)
-     * @param expirationDate fecha de vencimiento calculada en base a la duración
-     * @param amount monto del pago
-     * @return el pago registrado en la base de datos
-     * @throws Exception si el cliente no existe en la base de datos
-     */
-    public Payment registerPayment(Long clientId,
-                                   LocalDate paymentDate,
-                                   LocalDate expirationDate,
-                                   Double amount) throws Exception {
-
-        // Se busca el cliente en la base de datos con su ID
-        // Si no se encuentra, se lanza una excepción
-        Client client = clientRepository.findById(clientId)
-                .orElseThrow(() -> new Exception("No se encontró el cliente con id: " + clientId));
-
-        // Se valida que el cliente esté activo.
-        // Si está inactivo, se lanza una IllegalStateException
-        //porque no se debe permitir registrar pagos es este estado.
-        if (!client.isActive()){
-            throw new IllegalStateException("El cliente está inactivo y no puede registrar pagos");
-        }
-
-        // Se crea un nuevo objeto Payment y se setean los datos
-        // todo: contemplar escenarios donde el cliente tenga más de un pago por hacer, y aunque haga uno su estado no debería ser UP_TO_DATE
-        Payment payment = new Payment();
-        payment.setPaymentDate(paymentDate);
-        payment.setExpirationDate(expirationDate);
-        payment.setAmount(amount);
-        payment.setPaymentState(PaymentState.UP_TO_DATE);
-        // Se asocia el pago al cliente (esto asegura que el cliente tenga el historial completo).
-        client.registerPayment(payment);
-        // Se guarda el pago en la base de datos y se retorna la entidad persistida.
-        return paymentRepository.save(payment);
-    }
-
-    /**
-     * Obtiene todos los pagos registrados.
-     * @return lista de pagos.
-     */
-    public List<Payment> findAll(){
-        return paymentRepository.findAll();
-    }
-
-    /**
-     * Busca un pago por su identificador.
-     *
-     * @param id identificador del pago.
-     * @return Optional con el pago si existe, vacío si no.
-     */
-    public Optional<Payment> findById(Long id){
-        return paymentRepository.findById(id);
-    }
-
-    /**
-     * Elimina un pago por su identificador.
-     * Verifica si el pago existe antes de eliminarlo.
-     *
-     * @param id identificador del pago a eliminar.
-     * @throws Exception si el pago no existe.
-     */
-    public void delete(Long id) throws Exception {
-        Optional<Payment> payment = paymentRepository.findById(id);
-        if(payment.isPresent()){
-            paymentRepository.deleteById(id);
-        }else {
-            throw new Exception("No se pudo eliminar el pago con id: " + id);
-        }
-    }
-
 }

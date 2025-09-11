@@ -1,6 +1,7 @@
 package com.gym.gym_management.service;
 
 import com.gym.gym_management.authentication.RegisterRequest;
+import com.gym.gym_management.controller.dto.UserDTO;
 import com.gym.gym_management.model.Role;
 import com.gym.gym_management.model.User;
 import com.gym.gym_management.repository.IUserRepository;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Servicio que gestiona la lógica de negocio relacionada con usuarios del sistema.
@@ -80,4 +82,16 @@ public class UserService {
         return userRepository.findAll();
     }
 
+    // Nuevo: devuelve usuarios como DTO (sin password)
+    public List<UserDTO> findAllDTO() {
+        return userRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    private UserDTO toDTO(User user) {
+        UserDTO dto = new UserDTO();
+        dto.setId(user.getId());
+        dto.setEmail(user.getEmail());
+        dto.setRole(user.getRole());
+        return dto;
+    }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Entidad JPA que representa un pago realizado por un cliente del gimnasio.
@@ -39,6 +40,14 @@ public class Payment {
     // monto pagado
     private Double amount;
 
+    // Método de pago
+    @Enumerated(EnumType.STRING)
+    private PaymentMethod method;
+
+    // Período informado por el pago (mes/año)
+    private Integer month;
+    private Integer year;
+
     /**
      * Estado del pago (ej: PENDIENTE, PAGADO, VENCIDO).
      * @Enumerated sin tipo explícito usa ORDINAL por defecto, pero es recomendable usar STRING.
@@ -58,17 +67,35 @@ public class Payment {
     @JsonIgnore //evitamos exponer toda la info del cliente asociado y evitar ciclos recursivos con la lista de payments en cliente
     private Client client;
 
+    // Campos para anulación
+    private boolean voided = false;
+    private Long voidedBy;
+    private LocalDateTime voidedAt;
+    private String voidReason;
+
+    @PrePersist
+    protected void onCreate() {
+        if (paymentDate == null) {
+            paymentDate = LocalDate.now();
+        }
+        if (expirationDate == null) {
+            expirationDate = paymentDate.plusMonths(1); // Suponiendo que la mensualidad es por un mes
+        }
+    }
+
     public Payment() {
     }
 
-    public Payment(LocalDate paymentDate, LocalDate expirationDate, Double amount, PaymentState paymentState, Client client) {
-        this.paymentDate = paymentDate;
-        this.expirationDate = expirationDate;
-        this.amount = amount;
-        this.paymentState = paymentState;
+    public Payment(Client client, Double amount, PaymentMethod method, Integer month, Integer year) {
         this.client = client;
+        this.amount = amount;
+        this.method = method;
+        this.month = month;
+        this.year = year;
+        this.paymentDate = LocalDate.now();
     }
 
+    // Getters y setters
     public Long getId() {
         return id;
     }
@@ -77,20 +104,12 @@ public class Payment {
         this.id = id;
     }
 
-    public LocalDate getPaymentDate() {
-        return paymentDate;
+    public Client getClient() {
+        return client;
     }
 
-    public void setPaymentDate(LocalDate paymentDate) {
-        this.paymentDate = paymentDate;
-    }
-
-    public LocalDate getExpirationDate() {
-        return expirationDate;
-    }
-
-    public void setExpirationDate(LocalDate expirationDate) {
-        this.expirationDate = expirationDate;
+    public void setClient(Client client) {
+        this.client = client;
     }
 
     public Double getAmount() {
@@ -101,19 +120,91 @@ public class Payment {
         this.amount = amount;
     }
 
-    public PaymentState getPaymentState() {
+    public PaymentMethod getMethod() {
+        return method;
+    }
+
+    public void setMethod(PaymentMethod method) {
+        this.method = method;
+    }
+
+    public Integer getMonth() {
+        return month;
+    }
+
+    public void setMonth(Integer month) {
+        this.month = month;
+    }
+
+    public Integer getYear() {
+        return year;
+    }
+
+    public void setYear(Integer year) {
+        this.year = year;
+    }
+
+    public LocalDate getPaymentDate() {
+        return paymentDate;
+    }
+
+    public void setPaymentDate(LocalDate paymentDate) {
+        this.paymentDate = paymentDate;
+    }
+
+    public PaymentState getState() {
         return paymentState;
     }
 
-    public void setPaymentState(PaymentState paymentState) {
-        this.paymentState = paymentState;
+    public void setState(PaymentState state) {
+        this.paymentState = state;
     }
 
-    public Client getClient() {
-        return client;
+    public boolean isVoided() {
+        return voided;
     }
 
-    public void setClient(Client client) {
-        this.client = client;
+    public void setVoided(boolean voided) {
+        this.voided = voided;
+    }
+
+    public Long getVoidedBy() {
+        return voidedBy;
+    }
+
+    public void setVoidedBy(Long voidedBy) {
+        this.voidedBy = voidedBy;
+    }
+
+    public LocalDateTime getVoidedAt() {
+        return voidedAt;
+    }
+
+    public void setVoidedAt(LocalDateTime voidedAt) {
+        this.voidedAt = voidedAt;
+    }
+
+    public String getVoidReason() {
+        return voidReason;
+    }
+
+    public void setVoidReason(String voidReason) {
+        this.voidReason = voidReason;
+    }
+
+    public LocalDate getExpirationDate() {
+        return expirationDate;
+    }
+
+    public void setExpirationDate(LocalDate expirationDate) {
+        this.expirationDate = expirationDate;
+    }
+
+    public void anularPago(Long adminId, String reason) {
+        this.voided = true;
+        this.voidedBy = adminId;
+        this.voidedAt = LocalDateTime.now();
+        this.voidReason = reason;
+        this.paymentState = PaymentState.VOIDED;
     }
 }

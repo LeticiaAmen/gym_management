@@ -102,6 +102,13 @@
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>jakarta.validation</groupId>
+			<artifactId>jakarta.validation-api</artifactId>
+			<version>3.0.2</version>
+		</dependency>
+		<!-- Nota: Lombok eliminado para evitar incompatibilidades con determinadas versiones de JDK -->
+		<!-- Si se desea usar Lombok, elegir versión compatible con el JDK o ejecutar con JDK 17 -->
 	</dependencies>
 
 	<build>
@@ -127,13 +134,9 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.10.1</version>
 				<configuration>
-					<annotationProcessorPaths>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</path>
-					</annotationProcessorPaths>
+					<release>17</release>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -142,8 +145,7 @@
 				<configuration>
 					<excludes>
 						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
+							<!-- lombok exclusion removed -->
 						</exclude>
 					</excludes>
 				</configuration>

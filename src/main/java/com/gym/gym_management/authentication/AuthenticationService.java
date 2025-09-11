@@ -62,15 +62,14 @@ public class AuthenticationService {
            role = Role.valueOf(request.getRole().toUpperCase());
        }catch (IllegalArgumentException | NullPointerException e) {
            // Si no es válido, asigna el rol USER por defecto
-           role = Role.USER;
+           role = Role.ADMIN;
        }
-        // Construcción del objeto User con el patrón Builder
-        var user = User.builder()
-                .email(request.getEmail()) // Email como nombre de usuario
-                .password(passwordEncoder.encode(request.getPassword())) // Contraseña encriptada
-                .role(role) //Rol definido
-                .build();
-       // Guardado del nuevo usuario en la bd
+        // Construcción del objeto User sin builder
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(role);
+        // Guardado del nuevo usuario en la bd
         userRepository.save(user);
 
         // Genera un token JWT para el usuario recién creado

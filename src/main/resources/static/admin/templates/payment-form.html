@@ -1,0 +1,37 @@
+<!-- Formulario de Pago -->
+<div class="modal-content">
+    <h3>Registrar Pago</h3>
+    <form id="payment-form">
+        <div class="form-group">
+            <label for="clientId">Cliente *</label>
+            <select id="clientId" name="clientId" required></select>
+        </div>
+        <div class="form-group">
+            <label for="amount">Monto *</label>
+            <input type="number" id="amount" name="amount" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label for="method">Método de pago *</label>
+            <select id="method" name="method" required>
+                <option value="CASH">Efectivo</option>
+                <option value="DEBIT">Débito</option>
+                <option value="CREDIT">Crédito</option>
+                <option value="TRANSFER">Transferencia</option>
+                <option value="OTHER">Otro</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="paymentDate">Fecha de pago</label>
+            <input type="date" id="paymentDate" name="paymentDate">
+        </div>
+        <div class="form-group">
+            <label for="duration">Duración (meses) *</label>
+            <input type="number" id="duration" name="duration" min="1" value="1" required>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Registrar</button>
+            <button type="button" class="btn" onclick="closeModal('payment-modal')">Cancelar</button>
+        </div>
+    </form>
+</div>
+

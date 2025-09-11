@@ -1,14 +1,17 @@
 package com.gym.gym_management.controller;
 
+import com.gym.gym_management.controller.dto.UserDTO;
 import com.gym.gym_management.model.User;
 import com.gym.gym_management.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 /**
@@ -27,11 +30,11 @@ import java.util.List;
  */
 
 @RestController
-@RequestMapping("/users") //Ruta base
+@RequestMapping("/api/users") //Ruta base
 public class UserController {
 
     // Servicio que encapsula la lógica de negocio de los usuarios.
-    private UserService userService;
+    private final UserService userService;
 
     /**
      * Constructor que inyecta el servicio de usuarios.
@@ -44,13 +47,21 @@ public class UserController {
 
     /**
      * Obtiene la lista de todos los usuarios registrados en el sistema.
-     * Acceso: actualmente público para usuarios autenticados, pero puede restringirse
-     * a rol USER si solo los administradores deben ver la lista.
-     *
-     * @return ResponseEntity con la lista de usuarios y estado 200 OK.
+     * Acceso: solo usuarios con rol ADMIN.
+     * @return ResponseEntity con la lista de usuarios (DTO) y estado 200 OK.
      */
     @GetMapping
-    public ResponseEntity<List<User>> findAll(){
-        return ResponseEntity.ok(userService.findAll());
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserDTO>> findAll() {
+        List<UserDTO> users = userService.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        return ResponseEntity.ok(users);
+    }
+
+    private UserDTO toDTO(User user) {
+        UserDTO dto = new UserDTO();
+        dto.setId(user.getId());
+        dto.setEmail(user.getEmail());
+        dto.setRole(user.getRole());
+        return dto;
     }
 }

@@ -10,22 +10,12 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer; // IMPORTANTE: requerido para deshabilitar CSRF/formLogin/httpBasic
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 
-/**
- * Configuración de seguridad de Spring Security para la aplicación.
- *
- * Objetivo:
- *  - Proteger los endpoints REST de la aplicación usando autenticación con JWT.
- *  - Permitir el acceso público a los recursos estáticos (HTML, CSS, JS, imágenes).
- *  - Evitar redirecciones al login por defecto de Spring Security (devolvemos 401 en su lugar).
- *  - Definir reglas claras de autorización para separar qué rutas son públicas
- *    y cuáles requieren autenticación.
- */
 
 @Configuration //Marca la clase como configuración de spring
 @EnableWebSecurity // Activa la configuración personalizada de seguridad web
@@ -50,6 +40,11 @@ public class SecurityConfiguration {
     /**
      * Define la cadena de filtros principal de seguridad.
      * Aquí configuramos todas las reglas de autorización y autenticación.
+     *
+     * Notas clave (MVP admin-only):
+     * - API completamente stateless con JWT: no hay sesión de servidor.
+     * - Todos los endpoints de gestión requieren ROLE_ADMIN.
+     * - Vistas/estáticos pueden ser públicos; la protección efectiva está en la API.
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -57,47 +52,50 @@ public class SecurityConfiguration {
                 // Deshabilitamos CSRF porque usamos JWT (API sin estado, no formularios HTML clásicos).
                 .csrf(AbstractHttpConfigurer::disable)
 
-                // Definimos política de sesión: sin estado
-                // Cada request debe traer su JWT, no se guarda nada en la sesión del servidor
+                // Política de sesión: sin estado. Cada request debe traer su JWT.
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // definimos que rutas son públicas y cuales requieren autenticación
+                // Reglas de autorización
                 .authorizeHttpRequests(auth -> auth
-                        //Recursos estáticos comunes (favicosn, css. js, img)
+                        // Recursos estáticos comunes (favicon, css, js, img)
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers("/", "/index.html", "/favicon.ico",
                                 "/css/**", "/js/**", "/img/**", "/assets/**").permitAll()
 
-                        // Páginas HTML del frontend (panel admin y cliente) también son públicas
-                        // la seguridad real está en la api, no es estos html
-                        .requestMatchers("/admin/**", "/client/**").permitAll()
+                        // HTML del panel admin puede servir público; la API está protegida por JWT+RBAC.
+                        .requestMatchers("/admin/**").permitAll()
 
-                        //endpoint de login post público
+                        // Endpoint público para obtener JWT
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
 
-                        // endpoints de la API que requieren autenticación con JWT
-                        .requestMatchers("/auth/**", "/clients/**", "/payments/**", "/users/**").authenticated()
+                        // Endpoints de gestión ADMIN-only (prefijo actual /api/)
+                        .requestMatchers("/api/clients/**").hasRole("ADMIN")
+                        .requestMatchers("/api/payments/**").hasRole("ADMIN")
+                        .requestMatchers("/api/reports/**").hasRole("ADMIN")
+                        // Compatibilidad si existieran rutas sin prefijo /api
+                        .requestMatchers("/clients/**").hasRole("ADMIN")
+                        .requestMatchers("/payments/**").hasRole("ADMIN")
+                        .requestMatchers("/reports/**").hasRole("ADMIN")
 
-                        //cualquier otra ruta no contemplada requiere autenticación
+                        // Cualquier otra ruta requiere autenticación
                         .anyRequest().authenticated()
                 )
-                //Deshabilitamos los mecanismos de login tradicionales de Spring (formLogin y httpBasic).
-                // Solo usamos JWT.
+                // Deshabilitamos mecanismos de login tradicionales de Spring. Usamos solo JWT.
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
 
-                // Si falta autenticación o el token es inválido  devolvemos 401 en lugar de redirigir a /login.
+                // Si falta autenticación o el token es inválido devolvemos 401 (sin redirecciones)
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
                         (req, res, e) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED)
                 ))
 
-                //Registramos el AuthenticationProvider (usa UserDetailsService + PasswordEncoder)
+                // Registramos el AuthenticationProvider (UserDetailsService + PasswordEncoder)
                 .authenticationProvider(authenticationProvider)
 
-                //Agregamos el filtro JWT ANTES del filtro estándar de Spring (UsernamePasswordAuthenticationFilter).
+                // Agregamos el filtro JWT ANTES del filtro estándar de Spring
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        //Finalmente devolvemos la cadena de seguridad configurada
+        // Finalmente devolvemos la cadena de seguridad configurada
         return http.build();
     }
 

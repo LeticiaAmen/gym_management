@@ -1,93 +1,69 @@
 package com.gym.gym_management.controller.dto;
 
-import com.gym.gym_management.model.Payment;
+import com.gym.gym_management.model.PaymentMethod;
 import com.gym.gym_management.model.PaymentState;
-
+import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 
-/**
- * Data Transfer Object para la entidad Payment
- * Contiene solo la información que debe ser expuesta a través de la API
- */
 public class PaymentDTO {
     private Long id;
-    private LocalDate paymentDate;
-    private LocalDate expirationDate;
-    private Double amount;
-    private PaymentState paymentState;
+
+    @NotNull(message = "El ID del cliente es obligatorio")
     private Long clientId;
 
-    public PaymentDTO(){
-    }
+    @NotNull(message = "El monto es obligatorio")
+    @Positive(message = "El monto debe ser positivo")
+    private Double amount;
 
-    //getters y setters
-    public Long getId() {
-        return id;
-    }
+    @NotNull(message = "El método de pago es obligatorio")
+    private PaymentMethod method;
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    @NotNull(message = "El mes es obligatorio")
+    @Min(value = 1, message = "El mes debe estar entre 1 y 12")
+    @Max(value = 12, message = "El mes debe estar entre 1 y 12")
+    private Integer month;
 
-    public LocalDate getPaymentDate() {
-        return paymentDate;
-    }
+    @NotNull(message = "El año es obligatorio")
+    @Min(value = 2023, message = "El año debe ser válido")
+    private Integer year;
 
-    public void setPaymentDate(LocalDate paymentDate) {
-        this.paymentDate = paymentDate;
-    }
+    private LocalDate paymentDate;
+    private PaymentState state;
+    private boolean voided;
+    private Long voidedBy;
+    private String voidReason;
 
-    public LocalDate getExpirationDate() {
-        return expirationDate;
-    }
+    // Getters y setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setExpirationDate(LocalDate expirationDate) {
-        this.expirationDate = expirationDate;
-    }
+    public Long getClientId() { return clientId; }
+    public void setClientId(Long clientId) { this.clientId = clientId; }
 
-    public Double getAmount() {
-        return amount;
-    }
+    public Double getAmount() { return amount; }
+    public void setAmount(Double amount) { this.amount = amount; }
 
-    public void setAmount(Double amount) {
-        this.amount = amount;
-    }
+    public PaymentMethod getMethod() { return method; }
+    public void setMethod(PaymentMethod method) { this.method = method; }
 
-    public PaymentState getPaymentState() {
-        return paymentState;
-    }
+    public Integer getMonth() { return month; }
+    public void setMonth(Integer month) { this.month = month; }
 
-    public void setPaymentState(PaymentState paymentState) {
-        this.paymentState = paymentState;
-    }
+    public Integer getYear() { return year; }
+    public void setYear(Integer year) { this.year = year; }
 
-    public Long getClientId() {
-        return clientId;
-    }
+    public LocalDate getPaymentDate() { return paymentDate; }
+    public void setPaymentDate(LocalDate paymentDate) { this.paymentDate = paymentDate; }
 
-    public void setClientId(Long clientId) {
-        this.clientId = clientId;
-    }
+    public PaymentState getState() { return state; }
+    public void setState(PaymentState state) { this.state = state; }
 
-    /**
-     * Crea un PaymentDTO desde una entidad Payment
-     *
-     * @param payment para convertir
-     * @return el dto con la información de la entidad o null si payment es null
-     */
-    public static PaymentDTO fromEntity(Payment payment) {
-        if(payment == null) {
-            return null;
-        }
-        PaymentDTO dto = new PaymentDTO();
-        dto.setId(payment.getId());
-        dto.setPaymentDate(payment.getPaymentDate());
-        dto.setExpirationDate(payment.getExpirationDate());
-        dto.setAmount(payment.getAmount());
-        dto.setPaymentState(payment.getPaymentState());
-        if (payment.getClient() != null) {
-           dto.setClientId(payment.getClient().getId());
-        }
-        return dto;
-    }
+    public boolean isVoided() { return voided; }
+    public void setVoided(boolean voided) { this.voided = voided; }
+
+    public Long getVoidedBy() { return voidedBy; }
+    public void setVoidedBy(Long voidedBy) { this.voidedBy = voidedBy; }
+
+    public String getVoidReason() { return voidReason; }
+    public void setVoidReason(String voidReason) { this.voidReason = voidReason; }
 }

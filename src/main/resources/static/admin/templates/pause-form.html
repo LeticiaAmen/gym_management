@@ -1,0 +1,24 @@
+<!-- Formulario de Pausa -->
+<div class="modal-content">
+    <h3>Pausar Suscripción</h3>
+    <form id="pause-form">
+        <input type="hidden" id="pause-client-id" name="clientId">
+        <div class="form-group">
+            <label for="pauseFrom">Desde *</label>
+            <input type="date" id="pauseFrom" name="from" required>
+        </div>
+        <div class="form-group">
+            <label for="pauseTo">Hasta *</label>
+            <input type="date" id="pauseTo" name="to" required>
+        </div>
+        <div class="form-group">
+            <label for="pauseReason">Motivo</label>
+            <textarea id="pauseReason" name="reason" placeholder="Ej: Vacaciones, lesión, etc."></textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Pausar</button>
+            <button type="button" class="btn" onclick="closeModal('pause-modal')">Cancelar</button>
+        </div>
+    </form>
+</div>
+

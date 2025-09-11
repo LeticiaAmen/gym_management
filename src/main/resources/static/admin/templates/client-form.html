@@ -1,0 +1,35 @@
+<!-- Formulario de Cliente -->
+<div class="modal-content">
+    <h3>Cliente</h3>
+    <form id="client-form">
+        <div class="form-group">
+            <label for="firstName">Nombre *</label>
+            <input type="text" id="firstName" name="firstName" required>
+        </div>
+        <div class="form-group">
+            <label for="lastName">Apellido *</label>
+            <input type="text" id="lastName" name="lastName" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email *</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label for="phone">Teléfono</label>
+            <input type="tel" id="phone" name="phone">
+        </div>
+        <div class="form-group">
+            <label for="startDate">Fecha de inicio *</label>
+            <input type="date" id="startDate" name="startDate" required>
+        </div>
+        <div class="form-group">
+            <label for="notes">Notas</label>
+            <textarea id="notes" name="notes"></textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <button type="button" class="btn" onclick="closeModal('client-modal')">Cancelar</button>
+        </div>
+    </form>
+</div>
+

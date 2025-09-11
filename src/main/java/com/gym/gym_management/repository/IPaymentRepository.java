@@ -1,32 +1,40 @@
 package com.gym.gym_management.repository;
 
 import com.gym.gym_management.model.Payment;
+import com.gym.gym_management.model.PaymentState;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
-/**
- * Repositorio JPA para la entidad Payment.
- *
- * Extiende JpaRepository, lo que proporciona métodos CRUD estándar:
- * - findAll(), findById(), save(), deleteById(), etc.
- *
- * Métodos personalizados:
- * - findByClientId(Long clientId):
- *   Devuelve todos los pagos asociados a un cliente específico.
- *
- * Relación con los requerimientos:
- * - "Historial de Pagos": permite obtener todos los pagos de un cliente
- *   para que pueda consultar su historial o verificar si tiene pagos vencidos.
- * - "Panel de Administrador": facilita la gestión y seguimiento de pagos
- *   vinculados a cada cliente.
- */
+@Repository
 public interface IPaymentRepository extends JpaRepository<Payment, Long> {
-    // Busca todos los pagos asociados a un cliente mediante su ID.
-    //@return lista de pagos realizados por el cliente, vacía si no tiene pagos.
+
     List<Payment> findByClientId(Long clientId);
 
-    //Obtiene el pago más reciente de un cliente ordenado por fecha de vencimiento descendente
-    Optional<Payment> findTopByClientIdOrderByExpirationDateDesc(Long clientId);
+    List<Payment> findByExpirationDateAndPaymentState(LocalDate date, PaymentState paymentState);
+
+    List<Payment> findByExpirationDateBeforeAndPaymentState(LocalDate date, PaymentState paymentState);
+
+    List<Payment> findByPaymentDateBetweenAndVoidedFalse(LocalDate from, LocalDate to);
+
+    // Búsqueda con filtros opcionales + paginación
+    @Query("SELECT p FROM Payment p WHERE (:clientId IS NULL OR p.client.id = :clientId) " +
+           "AND (:from IS NULL OR p.paymentDate >= :from) " +
+           "AND (:to IS NULL OR p.paymentDate <= :to) " +
+           "AND (:state IS NULL OR p.paymentState = :state)")
+    Page<Payment> findByFilters(
+            @Param("clientId") Long clientId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
+            @Param("state") PaymentState state,
+            Pageable pageable
+    );
+
+    // Idempotencia por período (ignorando pagos anulados)
+    boolean existsByClient_IdAndMonthAndYearAndVoidedFalse(Long clientId, Integer month, Integer year);
 }

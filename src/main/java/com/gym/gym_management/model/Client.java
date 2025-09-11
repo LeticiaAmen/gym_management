@@ -1,10 +1,10 @@
 package com.gym.gym_management.model;
 
 import jakarta.persistence.*;
-
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
 
 /**
  * Entidad JPA que representa a un cliente del gimnasio.
@@ -27,130 +27,113 @@ import java.util.List;
 @Entity
 @Table(name = "clients")
 public class Client {
-
-    // Identificador de Client. No se genera automáticamente
-    // se toma del USER asociado gracias a MapsId(Clave primaria compartida)
     @Id
-    private Long id; //No usamos @GeneratedValue porque se asigna a partir de usuario
-
-    //Relación 1:1 con user
-    // Se añade cascade = cascadeType.all para propagar las operaciones de persistencia desde Client hacia su user asocidado.
-    // de esta manera al guardar o modificar un user se actualiza automáticamente el user vinculado.
-    @OneToOne(cascade = CascadeType.ALL)
-    @MapsId //Le indica a JPA que use el id del usuario como id del cliente
-    @JoinColumn(name = "user_id") //define la FK física en la tabla "clients" apuntando a "users".
-    private User user;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false)
     private String firstName;
+
     @Column(nullable = false)
     private String lastName;
-    private String telephone;
-    private boolean isActive;
 
-    /**
-     * Relación bidireccional 1:N con Payment.
-     * - mappedBy = "client": la FK vive en Payment (campo payment.client).
-     * - cascade = ALL: al persistir/actualizar/eliminar Client se propaga a sus Payments.
-     * - orphanRemoval = true: si un Payment se quita de la lista, se elimina de la BD.
-     */
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    private String phone;
+
+    private boolean isActive = true;
+
+    private String notes;
+
+    @Column(nullable = false)
+    private LocalDate startDate;
+
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    // Campos para pausa/reanudar suscripción
+    private LocalDate pausedFrom;
+    private LocalDate pausedTo;
+    private String pauseReason;
+
     @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Payment> payments = new ArrayList<>();
 
-    public Client() {
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+        if (startDate == null) {
+            startDate = LocalDate.now();
+        }
     }
 
-    /**
-     * Constructor conveniente para inicializar la entidad.
-     * OJO: al usar @MapsId, al setear user también se definirá el id del Client.
-     */
-    public Client(User user, String firstName, String lastName, String telephone, boolean isActive, List<Payment> payments) {
-        this.user = user;
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    // Constructor vacío requerido por JPA
+    public Client() {}
+
+    // Constructor con campos obligatorios
+    public Client(String firstName, String lastName, String email, String phone) {
         this.firstName = firstName;
         this.lastName = lastName;
-        this.telephone = telephone;
-        this.isActive = isActive;
-        this.payments = payments;
+        this.email = email;
+        this.phone = phone;
+        this.startDate = LocalDate.now();
     }
 
-    //Método para agregar un pago
-    public void registerPayment(Payment payment) {
+    // Getters y setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+
+    public boolean isActive() { return isActive; }
+    public void setActive(boolean active) { isActive = active; }
+
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
+
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+
+    public LocalDate getPausedFrom() { return pausedFrom; }
+    public void setPausedFrom(LocalDate pausedFrom) { this.pausedFrom = pausedFrom; }
+
+    public LocalDate getPausedTo() { return pausedTo; }
+    public void setPausedTo(LocalDate pausedTo) { this.pausedTo = pausedTo; }
+
+    public String getPauseReason() { return pauseReason; }
+    public void setPauseReason(String pauseReason) { this.pauseReason = pauseReason; }
+
+    public List<Payment> getPayments() { return payments; }
+    public void setPayments(List<Payment> payments) { this.payments = payments; }
+
+    // Métodos de conveniencia para la relación bidireccional con Payment
+    public void addPayment(Payment payment) {
         payments.add(payment);
         payment.setClient(this);
     }
 
-    //Método para eliminar pago
-    // Con orphanRemoval=true, el Payment se eliminará de la BD si ya estaba persistido.
     public void removePayment(Payment payment) {
         payments.remove(payment);
         payment.setClient(null);
-    }
-
-
-    public Long getId() {
-        return id;
-    }
-//    /**
-//     * En modelos con @MapsId, normalmente el id se deriva de user.
-//     * Solo usar este setter si se controla cuidadosamente la coherencia con user.getId().
-//     */
-//    public void setId(Long id) {
-//        this.id = id;
-//    }
-
-    public User getUser() {
-        return user;
-    }
-
-    /**
-     * Al setear el User, en escenarios típicos @MapsId hará que id = user.getId().
-     * Asegurate de que el User tenga un id asignado (persistido) antes de persistir Client.
-     */
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getTelephone() {
-        return telephone;
-    }
-
-    public void setTelephone(String telephone) {
-        this.telephone = telephone;
-    }
-
-    public boolean isActive() {
-        return isActive;
-    }
-
-    /**
-     * Marca si el cliente está activo o no.
-     * Útil para "pausar suscripciones" según requerimientos.
-     */
-    public void setActive(boolean active) {
-        isActive = active;
-    }
-
-    public List<Payment> getPayments() {
-        return payments;
-    }
-
-    public void setPayments(List<Payment> payments) {
-        this.payments = payments;
     }
 }

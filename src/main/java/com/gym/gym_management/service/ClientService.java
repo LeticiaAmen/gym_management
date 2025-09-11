@@ -1,117 +1,137 @@
 package com.gym.gym_management.service;
 
-import com.gym.gym_management.controller.dto.ClientUpdateRequestDTO;
+import com.gym.gym_management.controller.dto.ClientDTO;
 import com.gym.gym_management.model.Client;
 import com.gym.gym_management.repository.IClientRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
-/**
- * Servicio que encapsula la lógica de negocio para la gestión de clientes.
- *
- * Funciones principales:
- * - Consultar todos los clientes.
- * - Guardar un nuevo cliente.
- * - Actualizar un cliente existente.
- * - Eliminar un cliente por su ID.
- *
- * Relación con los requerimientos:
- * - "Gestión de Clientes" (Administradores):
- *   Permite crear, modificar, eliminar y consultar clientes.
- * - Actúa como intermediario entre ClientController y IClientRepository,
- *   manteniendo una separación clara entre la capa de presentación y la capa de persistencia.
- */
 @Service
 public class ClientService {
-    // Repositorio para acceder a los datos de clientes en la base de datos.
+
     @Autowired
     private IClientRepository clientRepository;
 
-    //Codificador de contraseñas para almacenar passwords
     @Autowired
-    private PasswordEncoder passwordEncoder;
+    private AuditService auditService;
 
-    /**
-     * Obtiene todos los clientes registrados en la base de datos.
-     * @return lista completa de clientes.
-     */
-    public List<Client> findAll(){
-        return clientRepository.findAll();
+    // Operaciones CRUD básicas
+    public List<ClientDTO> findAll() {
+        return clientRepository.findAll().stream()
+            .map(this::toDTO)
+            .collect(Collectors.toList());
     }
 
-    /**
-     * Guarda un nuevo cliente o actualiza uno existente.
-     *
-     * @param client objeto Client a persistir.
-     * @return cliente guardado con su ID generado (si es nuevo).
-     */
-    public Client saveClient(Client client){
-        return clientRepository.save(client);
+    public ClientDTO findById(Long id) {
+        return clientRepository.findById(id)
+            .map(this::toDTO)
+            .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
     }
 
-    /**
-     * Marca un cliente como inactivo de manera idempotente.
-     * Si el cliente ya está inactivo, no se realizan cambios adicionales.
-     *
-     * @param id identificador del cliente a desactivar.
-     * @return el cliente actualizado tras la operación.
-     */
-    public Client deactivateClient(Long id){
+    public ClientDTO create(ClientDTO dto) {
+        Client client = fromDTO(dto);
+        client.setActive(true);
+        Client saved = clientRepository.save(client);
+        auditService.logClientCreation(saved);
+        return toDTO(saved);
+    }
+
+    public ClientDTO update(Long id, ClientDTO dto) {
         Client client = clientRepository.findById(id)
-                .orElseThrow(()-> new IllegalArgumentException("No se encuentra el cliente a desactivar"));
+            .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
 
-        if (client.isActive()){
-            client.setActive(false);
-            client = clientRepository.save(client);
-        }
+        Client original = copyOf(client); // Para auditoría
+        updateClientFromDTO(client, dto);
+        Client updated = clientRepository.save(client);
+        auditService.logClientUpdate(original, updated);
+        return toDTO(updated);
+    }
+
+    // Operaciones de negocio
+    public void deactivate(Long id) {
+        Client client = clientRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+
+        client.setActive(false);
+        clientRepository.save(client);
+        auditService.logClientDeactivation(client);
+    }
+
+    public ClientDTO pause(Long id, LocalDate from, LocalDate to, String reason) {
+        Client client = clientRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+
+        client.setPausedFrom(from);
+        client.setPausedTo(to);
+        client.setPauseReason(reason);
+        Client updated = clientRepository.save(client);
+        auditService.logClientPause(updated);
+        return toDTO(updated);
+    }
+
+    public ClientDTO resume(Long id) {
+        Client client = clientRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+
+        client.setPausedFrom(null);
+        client.setPausedTo(null);
+        client.setPauseReason(null);
+        Client updated = clientRepository.save(client);
+        auditService.logClientResume(updated);
+        return toDTO(updated);
+    }
+
+    // Métodos auxiliares
+    private ClientDTO toDTO(Client client) {
+        ClientDTO dto = new ClientDTO();
+        dto.setId(client.getId());
+        dto.setFirstName(client.getFirstName());
+        dto.setLastName(client.getLastName());
+        dto.setEmail(client.getEmail());
+        dto.setPhone(client.getPhone());
+        dto.setActive(client.isActive());
+        dto.setStartDate(client.getStartDate());
+        dto.setNotes(client.getNotes());
+        dto.setPausedFrom(client.getPausedFrom());
+        dto.setPausedTo(client.getPausedTo());
+        dto.setPauseReason(client.getPauseReason());
+        return dto;
+    }
+
+    private Client fromDTO(ClientDTO dto) {
+        Client client = new Client();
+        updateClientFromDTO(client, dto);
         return client;
     }
 
-    /**
-     * Marca un cliente como activo de manera idempotente.
-     * Si el cliente ya está activo, no se realizan cambios adicionales.
-     *
-     * @param id identificador del cliente a activar.
-     * @return el cliente actualizado tras la operación.
-     */
-    public Client activateClient(Long id){
-        Client client = clientRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("No se encuentra el cliente a activar"));
-
-        if (!client.isActive()){
-            client.setActive(true);
-            client = clientRepository.save(client);
+    private void updateClientFromDTO(Client client, ClientDTO dto) {
+        client.setFirstName(dto.getFirstName());
+        client.setLastName(dto.getLastName());
+        client.setEmail(dto.getEmail());
+        client.setPhone(dto.getPhone());
+        if (dto.getStartDate() != null) {
+            client.setStartDate(dto.getStartDate());
         }
-        return client;
+        client.setNotes(dto.getNotes());
     }
 
-    /**
-     * Elimina (soft-delete) baja lógica de un cliente según su identificador
-     * se delega a deactivateclient para preservar el historial del cliente.
-     */
-    public void deleteClient(Long id){
-        deactivateClient(id);
+    private Client copyOf(Client c) {
+        Client copy = new Client();
+        copy.setId(c.getId());
+        copy.setFirstName(c.getFirstName());
+        copy.setLastName(c.getLastName());
+        copy.setEmail(c.getEmail());
+        copy.setPhone(c.getPhone());
+        copy.setActive(c.isActive());
+        copy.setNotes(c.getNotes());
+        copy.setStartDate(c.getStartDate());
+        copy.setPausedFrom(c.getPausedFrom());
+        copy.setPausedTo(c.getPausedTo());
+        copy.setPauseReason(c.getPauseReason());
+        return copy;
     }
-
-    /**
-     * Actualiza únicamente los datos de perfil de un cliente sin modificar
-     * la información del usuario asociado (email y contraseña).
-     *
-     * @param id identificador del cliente a actualizar.
-     * @param req datos nuevos de perfil.
-     * @return el cliente actualizado.
-     */
-
-    public Client updateProfile(Long id, ClientUpdateRequestDTO req){
-        Client client = clientRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("No se encuentra el cliente a editar"));
-        client.setFirstName(req.getFirstName());
-        client.setLastName(req.getLastName());
-        client.setTelephone(req.getTelephone());
-        return clientRepository.save(client);
-    }
-
 }

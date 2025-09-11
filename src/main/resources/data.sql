@@ -1,30 +1,37 @@
-INSERT INTO users(id, email, password, role) VALUES
-    (1, 'admin@gym.com',
-     '$2a$10$X.Rio15RFNmalRN9/XKmKOIGiH2FZD2bcyBroGKaItaUPZzOHwy6W', 'USER');
+-- Crear usuario administrador inicial (password: admin123)
+INSERT INTO users (email, password, role) VALUES
+('admin@scbox.com', '$2a$10$X.Rio15RFNmalRN9/XKmKOIGiH2FZD2bcyBroGKaItaUPZzOHwy6W', 'ADMIN');
 
-INSERT INTO users (id, email, password, role) VALUES
-    (2,  'juan@example.com',      '$2a$10$iMawbPXsPFX7pnxpHJTidO8jtFhCpLWnJ45jmSTi1JPXXSvPxs6BW', 'CLIENT'),
-    (3,  'ana@example.com',       '$2a$10$iMawbPXsPFX7pnxpHJTidO8jtFhCpLWnJ45jmSTi1JPXXSvPxs6BW', 'CLIENT'),
-    (4,  'marcos@example.com',    '$2a$10$iMawbPXsPFX7pnxpHJTidO8jtFhCpLWnJ45jmSTi1JPXXSvPxs6BW', 'CLIENT'),
-    (5,  'lucia@example.com',     '$2a$10$iMawbPXsPFX7pnxpHJTidO8jtFhCpLWnJ45jmSTi1JPXXSvPxs6BW', 'CLIENT'),
-    (6,  'carlos@example.com',    '$2a$10$iMawbPXsPFX7pnxpHJTidO8jtFhCpLWnJ45jmSTi1JPXXSvPxs6BW', 'CLIENT'),
-    (7,  'sofia@example.com',     '$2a$10$iMawbPXsPFX7pnxpHJTidO8jtFhCpLWnJ45jmSTi1JPXXSvPxs6BW', 'CLIENT'),
-    (8,  'diego@example.com',     '$2a$10$iMawbPXsPFX7pnxpHJTidO8jtFhCpLWnJ45jmSTi1JPXXSvPxs6BWq', 'CLIENT'),
-    (9,  'valeria@example.com',   '$2a$10$iMawbPXsPFX7pnxpHJTidO8jtFhCpLWnJ45jmSTi1JPXXSvPxs6BW', 'CLIENT'),
-    (10, 'tomas@example.com',     '$2a$10$iMawbPXsPFX7pnxpHJTidO8jtFhCpLWnJ45jmSTi1JPXXSvPxs6BW', 'CLIENT'),
-    (11, 'flor@example.com',      '$2a$10$iMawbPXsPFX7pnxpHJTidO8jtFhCpLWnJ45jmSTi1JPXXSvPxs6BW', 'CLIENT');
+-- Reset secuencia de users
+ALTER SEQUENCE users_id_seq RESTART WITH 2;
 
-INSERT INTO clients(user_id, first_name, last_name, telephone, is_active) VALUES
-    (2,  'Juan',    'Pérez',     '111-222-333',  true),
-    (3,  'Ana',     'García',    '444-555-666',  true),
-    (4,  'Marcos',  'Silva',     '777-888-999',  true),
-    (5,  'Lucía',   'Fernández', '222-333-444',  true),
-    (6,  'Carlos',  'Rodríguez', '333-444-555',  true),
-    (7,  'Sofía',   'López',     '555-666-777',  true),
-    (8,  'Diego',   'Martínez',  '666-777-888',  true),
-    (9,  'Valeria', 'Sosa',      '888-999-111',  true),
-    (10, 'Tomás',   'Gómez',     '999-111-222',  true),
-    (11, 'Flor',    'Ramos',     '123-456-789',  true);
+-- Insertar clientes de ejemplo
+INSERT INTO clients (first_name, last_name, email, phone, is_active, start_date, notes, created_at, updated_at) VALUES
+('Juan', 'Pérez', 'juan@example.com', '11-1234-5678', true, CURRENT_DATE - INTERVAL '3 months', 'Cliente regular', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Ana', 'García', 'ana@example.com', '11-5678-1234', true, CURRENT_DATE - INTERVAL '6 months', 'Plan premium', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Carlos', 'López', 'carlos@example.com', '11-9012-3456', true, CURRENT_DATE - INTERVAL '1 month', 'Nuevo cliente', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('María', 'Rodríguez', 'maria@example.com', '11-3456-7890', false, CURRENT_DATE - INTERVAL '8 months', 'Inactivo', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- sincroniza la secuencia con el mayor id + 1
-SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
+-- Reset secuencia de clients
+ALTER SEQUENCE clients_id_seq RESTART WITH 5;
+
+-- Insertar pagos de ejemplo
+INSERT INTO payments (client_id, amount, method, month, year, payment_date, payment_state, voided) VALUES
+(1, 5000.00, 'CASH', 9, 2025, CURRENT_DATE - INTERVAL '5 days', 'UP_TO_DATE', false),
+(1, 5000.00, 'TRANSFER', 8, 2025, CURRENT_DATE - INTERVAL '35 days', 'UP_TO_DATE', false),
+(2, 6000.00, 'CREDIT', 9, 2025, CURRENT_DATE - INTERVAL '3 days', 'UP_TO_DATE', false),
+(2, 6000.00, 'DEBIT', 8, 2025, CURRENT_DATE - INTERVAL '33 days', 'UP_TO_DATE', false),
+(3, 5000.00, 'CASH', 9, 2025, CURRENT_DATE, 'PENDING', false),
+(4, 5000.00, 'TRANSFER', 7, 2025, CURRENT_DATE - INTERVAL '60 days', 'EXPIRED', false);
+
+-- Reset secuencia de payments
+ALTER SEQUENCE payments_id_seq RESTART WITH 7;
+
+-- Insertar algunos registros de auditoría
+INSERT INTO audit_logs (action, user_id, entity, entity_id, old_values, new_values, created_at) VALUES
+('CREATE_CLIENT', 1, 'Client', 1, null, 'Cliente Juan Pérez creado', CURRENT_TIMESTAMP),
+('CREATE_PAYMENT', 1, 'Payment', 1, null, 'Pago registrado por $5000.00', CURRENT_TIMESTAMP),
+('UPDATE_CLIENT', 1, 'Client', 4, 'isActive=true', 'isActive=false', CURRENT_TIMESTAMP);
+
+-- Reset secuencia de audit_logs
+ALTER SEQUENCE audit_logs_id_seq RESTART WITH 4;
