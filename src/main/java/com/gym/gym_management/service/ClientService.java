@@ -2,7 +2,10 @@ package com.gym.gym_management.service;
 
 import com.gym.gym_management.controller.dto.ClientDTO;
 import com.gym.gym_management.model.Client;
+import com.gym.gym_management.model.Payment;
+import com.gym.gym_management.model.PaymentState;
 import com.gym.gym_management.repository.IClientRepository;
+import com.gym.gym_management.repository.IPaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -10,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,13 +23,39 @@ public class ClientService {
     private IClientRepository clientRepository;
 
     @Autowired
+    private IPaymentRepository paymentRepository;
+
+    @Autowired
+    private PaymentService paymentService;
+
+    @Autowired
     private AuditService auditService;
 
-    // Operaciones CRUD básicas
+    // Listado simple sin filtros
     public List<ClientDTO> findAll() {
         return clientRepository.findAll().stream()
             .map(this::toDTO)
             .collect(Collectors.toList());
+    }
+
+    // Búsqueda con filtros opcionales
+    public List<ClientDTO> search(String q, Boolean active, PaymentState paymentState) {
+        List<Client> base = (q != null || active != null)
+                ? clientRepository.search((q == null || q.isBlank()) ? null : q.trim(), active)
+                : clientRepository.findAll();
+
+        if (paymentState != null) {
+            LocalDate today = LocalDate.now();
+            int month = today.getMonthValue();
+            int year = today.getYear();
+            base = base.stream()
+                    .filter(c -> {
+                        PaymentState derived = paymentService.computePeriodState(c.getId(), month, year);
+                        return Objects.equals(derived, paymentState);
+                    })
+                    .collect(Collectors.toList());
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     public ClientDTO findById(Long id) {

@@ -1,6 +1,7 @@
 package com.gym.gym_management.controller;
 
 import com.gym.gym_management.controller.dto.ClientDTO;
+import com.gym.gym_management.model.PaymentState;
 import com.gym.gym_management.service.ClientService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,17 +18,12 @@ import java.util.List;
  * Controlador REST para gestionar operaciones sobre clientes.
  *
  * Endpoints:
- * - GET    /clients                 → Lista todos los clientes.
- * - POST   /clients                 → Crea un nuevo cliente (requiere rol USER).
+ * - GET    /clients                 → Lista todos los clientes o filtra por q/active/payment.
+ * - POST   /clients                 → Crea un nuevo cliente.
  * - PUT    /clients/{id}            → Actualiza un cliente existente.
  * - PATCH  /clients/{id}/deactivate → Desactiva un cliente.
  * - PATCH  /clients/{id}/activate   → Activa un cliente.
  * - DELETE /clients/{id}            → Elimina (soft delete) un cliente por id.
- *
- * Relación con los requerimientos:
- * - "Gestión de Clientes (Administradores)": crear, modificar, eliminar clientes.
- * - "Autenticación y Seguridad": el alta de clientes está protegida por roles (solo USER).
- * - "Accesibilidad Web": expone endpoints REST para uso por web/móvil/Postman.
  */
 
 @RestController
@@ -38,9 +34,16 @@ public class ClientController {
     @Autowired
     private ClientService clientService;
 
-    // Listar clientes (simple)
+    // Listar o filtrar clientes
     @GetMapping
-    public ResponseEntity<List<ClientDTO>> findAll() {
+    public ResponseEntity<List<ClientDTO>> find(
+            @RequestParam(value = "q", required = false) String q,
+            @RequestParam(value = "active", required = false) Boolean active,
+            @RequestParam(value = "payment", required = false) PaymentState payment
+    ) {
+        if (q != null || active != null || payment != null) {
+            return ResponseEntity.ok(clientService.search(q, active, payment));
+        }
         return ResponseEntity.ok(clientService.findAll());
     }
 

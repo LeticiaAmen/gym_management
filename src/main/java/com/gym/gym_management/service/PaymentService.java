@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,6 +38,9 @@ public class PaymentService {
         if (dto.getAmount() == null || dto.getAmount() <= 0) {
             throw new IllegalArgumentException("El monto debe ser mayor a 0");
         }
+        if (dto.getMethod() == null) {
+            throw new IllegalArgumentException("El método de pago es obligatorio");
+        }
         if (dto.getMonth() == null || dto.getMonth() < 1 || dto.getMonth() > 12) {
             throw new IllegalArgumentException("El mes debe estar entre 1 y 12");
         }
@@ -52,21 +56,34 @@ public class PaymentService {
         if (paymentRepository.existsByClient_IdAndMonthAndYearAndVoidedFalse(dto.getClientId(), dto.getMonth(), dto.getYear())) {
             throw new IllegalStateException("Ya existe un pago válido para ese período");
         }
-        // Fecha de pago (opcional). Puedes prohibir futura si el negocio lo requiere
-        if (dto.getPaymentDate() != null && dto.getPaymentDate().isAfter(LocalDate.now())) {
+        // Fecha de pago (opcional). Prohibir futura si negocio lo requiere
+        LocalDate payDate = dto.getPaymentDate() != null ? dto.getPaymentDate() : LocalDate.now();
+        if (dto.getPaymentDate() != null && payDate.isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("La fecha de pago no puede ser futura");
+        }
+
+        // Calcular expirationDate: mensual (1 mes) o por días (durationDays)
+        Integer durationDays = dto.getDurationDays();
+        LocalDate expiration;
+        if (durationDays != null) {
+            if (durationDays < 1) throw new IllegalArgumentException("La duración debe ser al menos 1 día");
+            expiration = payDate.plusDays(durationDays);
+        } else {
+            // Mensual: hasta el mismo día del mes siguiente (ej. 15/08 → 15/09)
+            expiration = payDate.plusMonths(1);
         }
 
         Payment payment = fromDTO(dto);
         payment.setClient(client);
         payment.setState(PaymentState.UP_TO_DATE);
-        if (payment.getPaymentDate() == null) {
-            payment.setPaymentDate(LocalDate.now());
-        }
+        payment.setPaymentDate(payDate);
+        payment.setExpirationDate(expiration);
 
         Payment saved = paymentRepository.save(payment);
         auditService.logPaymentCreation(saved); // Auditoría mínima
-        return toDTO(saved);
+        PaymentDTO out = toDTO(saved);
+        out.setExpirationDate(expiration);
+        return out;
     }
 
     // Consulta con filtros + paginación
@@ -103,7 +120,7 @@ public class PaymentService {
         return toDTO(saved);
     }
 
-    // Recordatorios (utilizados por EmailService cuando está habilitado)
+    // Recordatorios
     public List<Payment> findExpiringPayments() {
         return paymentRepository.findByExpirationDateAndPaymentState(
                 LocalDate.now().plusDays(3),
@@ -118,6 +135,29 @@ public class PaymentService {
         );
     }
 
+    // ===== Estado de período (sin persistir) =====
+    public LocalDate computeDueDate(int month, int year) {
+        if (month < 1 || month > 12) throw new IllegalArgumentException("El mes debe estar entre 1 y 12");
+        if (year < 2000) throw new IllegalArgumentException("El año debe ser >= 2000");
+        YearMonth ym = YearMonth.of(year, month);
+        int day = Math.min(10, ym.lengthOfMonth());
+        return LocalDate.of(year, month, day);
+    }
+
+    public PaymentState computePeriodState(Long clientId, int month, int year) {
+        if (clientId == null) throw new IllegalArgumentException("clientId es obligatorio");
+        if (!clientRepository.existsById(clientId)) {
+            throw new IllegalArgumentException("Cliente no encontrado");
+        }
+        if (paymentRepository.existsByClient_IdAndMonthAndYearAndVoidedFalse(clientId, month, year)) {
+            return PaymentState.UP_TO_DATE;
+        }
+        LocalDate due = computeDueDate(month, year);
+        LocalDate graceEnd = due.plusDays(3);
+        LocalDate today = LocalDate.now();
+        return today.isAfter(graceEnd) ? PaymentState.EXPIRED : PaymentState.PENDING;
+    }
+
     // Mapeos
     private PaymentDTO toDTO(Payment payment) {
         PaymentDTO dto = new PaymentDTO();
@@ -128,6 +168,7 @@ public class PaymentService {
         dto.setMonth(payment.getMonth());
         dto.setYear(payment.getYear());
         dto.setPaymentDate(payment.getPaymentDate());
+        dto.setExpirationDate(payment.getExpirationDate());
         dto.setState(payment.getState());
         dto.setVoided(payment.isVoided());
         dto.setVoidedBy(payment.getVoidedBy());

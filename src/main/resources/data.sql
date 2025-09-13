@@ -15,14 +15,16 @@ INSERT INTO clients (first_name, last_name, email, phone, is_active, start_date,
 -- Reset secuencia de clients
 ALTER SEQUENCE clients_id_seq RESTART WITH 5;
 
--- Insertar pagos de ejemplo
-INSERT INTO payments (client_id, amount, method, month, year, payment_date, payment_state, voided) VALUES
-(1, 5000.00, 'CASH', 9, 2025, CURRENT_DATE - INTERVAL '5 days', 'UP_TO_DATE', false),
-(1, 5000.00, 'TRANSFER', 8, 2025, CURRENT_DATE - INTERVAL '35 days', 'UP_TO_DATE', false),
-(2, 6000.00, 'CREDIT', 9, 2025, CURRENT_DATE - INTERVAL '3 days', 'UP_TO_DATE', false),
-(2, 6000.00, 'DEBIT', 8, 2025, CURRENT_DATE - INTERVAL '33 days', 'UP_TO_DATE', false),
-(3, 5000.00, 'CASH', 9, 2025, CURRENT_DATE, 'PENDING', false),
-(4, 5000.00, 'TRANSFER', 7, 2025, CURRENT_DATE - INTERVAL '60 days', 'EXPIRED', false);
+-- Insertar pagos de ejemplo (con expiration_date consistente)
+-- Nota: derivamos expiration_date = payment_date + 1 mes para simplificar el modelo
+INSERT INTO payments (client_id, amount, method, month, year, payment_date, expiration_date, payment_state, voided) VALUES
+(1, 5000.00, 'CASH',     9, 2025, CURRENT_DATE - INTERVAL '5 days',  (CURRENT_DATE - INTERVAL '5 days')  + INTERVAL '1 month', 'UP_TO_DATE', false),
+(1, 5000.00, 'TRANSFER', 8, 2025, CURRENT_DATE - INTERVAL '35 days', (CURRENT_DATE - INTERVAL '35 days') + INTERVAL '1 month', 'UP_TO_DATE', false),
+(2, 6000.00, 'CREDIT',   9, 2025, CURRENT_DATE - INTERVAL '3 days',  (CURRENT_DATE - INTERVAL '3 days')  + INTERVAL '1 month', 'UP_TO_DATE', false),
+(2, 6000.00, 'DEBIT',    8, 2025, CURRENT_DATE - INTERVAL '33 days', (CURRENT_DATE - INTERVAL '33 days') + INTERVAL '1 month', 'UP_TO_DATE', false),
+-- Para representar un cliente "pendiente" según la lógica actual (sin pagos válidos), dejamos su último pago como anulado (voided)
+(3, 5000.00, 'CASH',     9, 2025, CURRENT_DATE,                       (CURRENT_DATE)                         + INTERVAL '1 month', 'VOIDED',     true),
+(4, 5000.00, 'TRANSFER', 7, 2025, CURRENT_DATE - INTERVAL '60 days', (CURRENT_DATE - INTERVAL '60 days') + INTERVAL '1 month', 'EXPIRED',   false);
 
 -- Reset secuencia de payments
 ALTER SEQUENCE payments_id_seq RESTART WITH 7;

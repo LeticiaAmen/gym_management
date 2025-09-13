@@ -28,6 +28,12 @@ public class PaymentDTO {
     private Integer year;
 
     private LocalDate paymentDate;
+    private LocalDate expirationDate; // calculada: 30 días (mensual) o durationDays
+
+    // Opcional: duración personalizada en días. Si es null, se asume 30 días
+    @Min(value = 1, message = "La duración debe ser al menos 1 día")
+    private Integer durationDays;
+
     private PaymentState state;
     private boolean voided;
     private Long voidedBy;
@@ -54,6 +60,12 @@ public class PaymentDTO {
 
     public LocalDate getPaymentDate() { return paymentDate; }
     public void setPaymentDate(LocalDate paymentDate) { this.paymentDate = paymentDate; }
+
+    public LocalDate getExpirationDate() { return expirationDate; }
+    public void setExpirationDate(LocalDate expirationDate) { this.expirationDate = expirationDate; }
+
+    public Integer getDurationDays() { return durationDays; }
+    public void setDurationDays(Integer durationDays) { this.durationDays = durationDays; }
 
     public PaymentState getState() { return state; }
     public void setState(PaymentState state) { this.state = state; }

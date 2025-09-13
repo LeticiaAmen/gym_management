@@ -2,6 +2,7 @@
 <div class="modal-content">
     <h3>Registrar Pago</h3>
     <form id="payment-form">
+        <div id="payment-form-error" class="form-error"></div>
         <div class="form-group">
             <label for="clientId">Cliente *</label>
             <select id="clientId" name="clientId" required></select>
@@ -24,9 +25,37 @@
             <label for="paymentDate">Fecha de pago</label>
             <input type="date" id="paymentDate" name="paymentDate">
         </div>
-        <div class="form-group">
-            <label for="duration">Duración (meses) *</label>
-            <input type="number" id="duration" name="duration" min="1" value="1" required>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="periodMonth">Mes *</label>
+                <select id="periodMonth" name="periodMonth" required>
+                    <option value="1">01</option>
+                    <option value="2">02</option>
+                    <option value="3">03</option>
+                    <option value="4">04</option>
+                    <option value="5">05</option>
+                    <option value="6">06</option>
+                    <option value="7">07</option>
+                    <option value="8">08</option>
+                    <option value="9">09</option>
+                    <option value="10">10</option>
+                    <option value="11">11</option>
+                    <option value="12">12</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="periodYear">Año *</label>
+                <input type="number" id="periodYear" name="periodYear" min="2000" required>
+            </div>
+        </div>
+        <fieldset class="form-group">
+            <legend>Validez</legend>
+            <label><input type="radio" name="validityType" value="monthly" checked> Mensual (30 días)</label>
+            <label><input type="radio" name="validityType" value="days"> Por días</label>
+        </fieldset>
+        <div class="form-group" id="durationDaysGroup" style="display:none">
+            <label for="durationDays">Duración (días)</label>
+            <input type="number" id="durationDays" name="durationDays" min="1" placeholder="Ej. 10">
         </div>
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Registrar</button>
@@ -34,4 +63,3 @@
         </div>
     </form>
 </div>
-

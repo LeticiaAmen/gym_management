@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 
@@ -121,5 +122,28 @@ public class PaymentController {
         return payment.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-
+    /**
+     * Estado de un período (mes/año) calculado on-the-fly.
+     * UP_TO_DATE si existe Payment válido para (client,month,year),
+     * si no existe: PENDING si hoy <= dueDate+3, EXPIRED si hoy > dueDate+3.
+     */
+    @GetMapping("/state")
+    public ResponseEntity<?> getPeriodState(
+            @RequestParam Long clientId,
+            @RequestParam Integer month,
+            @RequestParam Integer year
+    ) {
+        try {
+            PaymentState state = paymentService.computePeriodState(clientId, month, year);
+            LocalDate due = paymentService.computeDueDate(month, year);
+            LocalDate graceEnd = due.plusDays(3);
+            return ResponseEntity.ok(Map.of(
+                    "state", state.name(),
+                    "dueDate", due.toString(),
+                    "graceEnd", graceEnd.toString()
+            ));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        }
+    }
 }

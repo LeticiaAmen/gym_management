@@ -37,4 +37,11 @@ public interface IPaymentRepository extends JpaRepository<Payment, Long> {
 
     // Idempotencia por período (ignorando pagos anulados)
     boolean existsByClient_IdAndMonthAndYearAndVoidedFalse(Long clientId, Integer month, Integer year);
+
+    // Último pago válido (no anulado) para un cliente
+    Payment findTopByClient_IdAndVoidedFalseOrderByExpirationDateDesc(Long clientId);
+
+    // Último pago efectivo: prioridad por expirationDate y si es null usa paymentDate
+    @Query("SELECT p FROM Payment p WHERE p.client.id = :clientId AND p.voided = false ORDER BY COALESCE(p.expirationDate, p.paymentDate) DESC")
+    Payment findLastEffectiveByClient(@Param("clientId") Long clientId);
 }
