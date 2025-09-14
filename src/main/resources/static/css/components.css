@@ -1,0 +1,231 @@
+/* Navbar Styles - Modern Dark Design */
+.navbar {
+    background: #1a1d29;
+    color: white;
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 60px;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-decoration: none;
+    color: white;
+}
+
+.navbar-brand::before {
+    content: "🏋️";
+    font-size: 1.8rem;
+}
+
+.navbar-nav {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.navbar-nav li {
+    margin: 0;
+}
+
+.navbar-nav a {
+    color: #8b9dc3;
+    text-decoration: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    border: 2px solid transparent;
+    background: transparent;
+}
+
+.navbar-nav a:hover {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.navbar-nav a.active {
+    background: linear-gradient(135deg, #ff6b35, #f7931e);
+    color: white;
+    border: 2px solid #ff6b35;
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+/* Iconos para cada sección */
+.navbar-nav a[data-section="dashboard"]::before {
+    content: "📊";
+    font-size: 1.1rem;
+}
+
+.navbar-nav a[data-section="clients"]::before {
+    content: "👥";
+    font-size: 1.1rem;
+}
+
+.navbar-nav a[data-section="payments"]::before {
+    content: "💳";
+    font-size: 1.1rem;
+}
+
+.navbar-nav a[data-section="reports"]::before {
+    content: "📈";
+    font-size: 1.1rem;
+}
+
+.navbar-user {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.navbar-user span {
+    font-size: 0.9rem;
+    color: #8b9dc3;
+    display: none; /* Ocultamos el texto en esta versión */
+}
+
+.btn-logout {
+    background: transparent;
+    color: #8b9dc3;
+    border: 2px solid #8b9dc3;
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-logout::before {
+    content: "🚪";
+    font-size: 1rem;
+}
+
+.btn-logout:hover {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+/* Ajuste para contenido con navbar fijo */
+body.with-navbar {
+    padding-top: 90px;
+    background: #0f1419;
+    color: white;
+}
+
+/* Responsive navbar */
+@media (max-width: 768px) {
+    .navbar {
+        flex-wrap: wrap;
+        padding: 1rem;
+    }
+
+    .navbar-nav {
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+        margin-top: 1rem;
+    }
+
+    .navbar-nav a {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .navbar-user {
+        margin-top: 1rem;
+        width: 100%;
+        justify-content: center;
+    }
+
+    body.with-navbar {
+        padding-top: 140px;
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar-nav {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .navbar-nav a {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+    }
+
+    body.with-navbar {
+        padding-top: 180px;
+    }
+}
+
+/* Estilos para el contenido principal */
+.container {
+    background: #1a1d29;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.section h2 {
+    color: white;
+    border-bottom: 2px solid #ff6b35;
+}
+
+/* Dropdown menu styles */
+.dropdown {
+    position: relative;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: #1a1d29;
+    border: 1px solid #3a3f54;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    min-width: 160px;
+    display: none;
+    z-index: 1001;
+}
+
+.dropdown-menu.show {
+    display: block;
+}
+
+.dropdown-menu a {
+    color: #8b9dc3;
+    padding: 0.75rem 1rem;
+    display: block;
+    text-decoration: none;
+    border-radius: 0;
+}
+
+.dropdown-menu a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}

@@ -79,25 +79,24 @@ async function loadClients(filters = null) {
         tbody.innerHTML = clients.map(client => {
             const start = client.startDate ? new Date(client.startDate).toLocaleDateString() : '-';
             const pauseBtn = isCurrentlyPaused(client)
-                ? `<button type="button" class="btn js-resume" data-id="${client.id}">Reanudar</button>`
-                : `<button type="button" class="btn js-pause" data-id="${client.id}">Pausar</button>`;
+                ? `<button type="button" class="action-btn pause js-resume" data-id="${client.id}" title="Reanudar">▶️</button>`
+                : `<button type="button" class="action-btn pause js-pause" data-id="${client.id}" title="Pausar">⏸️</button>`;
             return `
             <tr>
-                <td>${client.id}</td>
-                <td>${client.firstName || ''}</td>
-                <td>${client.lastName || ''}</td>
-                <td>${client.email || ''}</td>
-                <td>${client.phone || '-'}</td>
-                <td>${client.active ? 'Activo' : 'Inactivo'}</td>
-                <td>${start}</td>
-                <td>
-                    <button type="button" class="btn js-edit" data-id="${client.id}">Editar</button>
-                    <button type="button" class="btn js-view-payments" data-id="${client.id}" onclick="viewClientPayments(${client.id})">Ver pagos</button>
-                    ${client.active ? 
-                        `<button type="button" class="btn btn-danger js-deactivate" data-id="${client.id}">Desactivar</button>` :
-                        `<button type="button" class="btn btn-primary js-activate" data-id="${client.id}">Activar</button>`
-                    }
+                <td class="id-cell">${client.id}</td>
+                <td class="name-cell">${client.firstName || ''}</td>
+                <td class="name-cell">${client.lastName || ''}</td>
+                <td class="email-cell">${client.email || ''}</td>
+                <td class="phone-cell">${client.phone || '-'}</td>
+                <td><span class="status-badge ${client.active ? 'active' : 'inactive'}">${client.active ? 'Activo' : 'Inactivo'}</span></td>
+                <td class="date-cell">${start}</td>
+                <td class="actions-cell">
+                    <button type="button" class="action-btn edit js-edit" data-id="${client.id}" title="Editar">✏️</button>
                     ${pauseBtn}
+                    ${client.active ? 
+                        `<button type="button" class="action-btn delete js-deactivate" data-id="${client.id}" title="Desactivar">❌</button>` :
+                        `<button type="button" class="action-btn edit js-activate" data-id="${client.id}" title="Activar">✅</button>`
+                    }
                 </td>
             </tr>`;
         }).join('');

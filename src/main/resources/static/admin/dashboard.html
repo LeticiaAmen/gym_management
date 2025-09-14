@@ -4,25 +4,197 @@
     <meta charset="UTF-8">
     <title>GYM - Panel de Administración</title>
     <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/dashboard.css">
 </head>
-<body>
+<body class="with-navbar">
+  <!-- Navbar Moderno -->
+  <nav class="navbar">
+    <a href="/admin/dashboard.html" class="navbar-brand">GYM BOX</a>
+
+    <ul class="navbar-nav">
+      <li><a href="#" data-section="dashboard" class="active">Dashboard</a></li>
+      <li><a href="#" data-section="clients">Clients</a></li>
+      <li><a href="#" data-section="payments">Payments</a></li>
+      <li><a href="#" data-section="reports">Reports</a></li>
+    </ul>
+
+    <div class="navbar-user">
+      <button onclick="logout()" class="btn-logout">Logout</button>
+    </div>
+  </nav>
+
   <div class="container">
-    <header>
-      <h1>GYM - Panel de Administración</h1>
-      <nav>
-        <button onclick="showSection('clients')" class="btn">Clientes</button>
-        <button onclick="showSection('payments')" class="btn">Pagos</button>
-        <button onclick="showSection('reports')" class="btn">Reportes</button>
-        <button onclick="logout()" class="btn btn-danger">Cerrar Sesión</button>
-      </nav>
-    </header>
+    <!-- Sección Dashboard Principal -->
+    <section id="dashboard-section" class="section">
+      <div class="dashboard-header">
+        <h1>Welcome back!</h1>
+        <p class="dashboard-subtitle">Here's what's happening at GYM BOX today.</p>
+      </div>
+
+      <!-- Tarjetas de estadísticas -->
+      <div class="stats-grid">
+        <div class="stat-card active-clients">
+          <div class="stat-content">
+            <div class="stat-info">
+              <h3>Active Clients</h3>
+              <span class="stat-number" id="active-clients-count">234</span>
+            </div>
+            <div class="stat-icon">
+              <i class="icon-users">👥</i>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="stat-card pending-payments">
+          <div class="stat-content">
+            <div class="stat-info">
+              <h3>Pending Payments</h3>
+              <span class="stat-number" id="pending-payments-count">18</span>
+            </div>
+            <div class="stat-icon">
+              <i class="icon-warning">⚠️</i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actividad reciente -->
+      <div class="recent-activity">
+        <h2 style="color: white">Recent Activity</h2>
+        <div class="activity-list" id="recent-activity-list">
+          <div class="activity-item">
+            <div class="activity-indicator new-client"></div>
+            <div class="activity-content">
+              <span class="activity-title">New client registered: John Smith</span>
+              <span class="activity-time">2 hours ago</span>
+            </div>
+          </div>
+
+          <div class="activity-item">
+            <div class="activity-indicator payment"></div>
+            <div class="activity-content">
+              <span class="activity-title">Payment received: $150 from Maria Garcia</span>
+              <span class="activity-time">4 hours ago</span>
+            </div>
+          </div>
+
+          <div class="activity-item">
+            <div class="activity-indicator expiring"></div>
+            <div class="activity-content">
+              <span class="activity-title">Membership expiring: David Johnson</span>
+              <span class="activity-time">6 hours ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- Sección Clientes -->
-    <section id="clients-section" class="section">
-      <h2>Gestión de Clientes</h2>
-      <div class="filters">
-        <input type="text" id="client-q" placeholder="Buscar por nombre, apellido o email" />
+    <section id="clients-section" class="section" style="display:none">
+      <div class="section-header">
+        <div class="section-title">
+          <h1>Clients Management</h1>
+          <p class="section-subtitle">Manage your gym members and their information</p>
+        </div>
+        <button onclick="showClientForm()" class="btn-new-client">
+          <span class="btn-icon">+</span>
+          New Client
+        </button>
+      </div>
+
+      <div class="search-section">
+        <div class="search-container">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="client-q" class="search-input" placeholder="Search clients by name or email..." />
+        </div>
+      </div>
+
+      <div class="clients-table-container">
+        <div class="table-header">
+          <h3>All Clients (<span id="clients-count">5</span>)</h3>
+        </div>
+
+        <div class="modern-table-wrapper">
+          <table id="clients-table" class="modern-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Los datos se llenarán por JS - Datos de ejemplo: -->
+              <tr>
+                <td class="id-cell">1</td>
+                <td class="name-cell">Juan</td>
+                <td class="name-cell">Pérez</td>
+                <td class="email-cell">juan@example.com</td>
+                <td class="phone-cell">11-1234-5678</td>
+                <td><span class="status-badge active">Activo</span></td>
+                <td class="date-cell">13/6/2025</td>
+                <td class="actions-cell">
+                  <button class="action-btn edit" title="Edit" onclick="editClient(1)">✏️</button>
+                  <button class="action-btn pause" title="Pause" onclick="pauseClient(1)">⏸️</button>
+                  <button class="action-btn delete" title="Delete" onclick="deleteClient(1)">❌</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="id-cell">2</td>
+                <td class="name-cell">Ana</td>
+                <td class="name-cell">García</td>
+                <td class="email-cell">ana@example.com</td>
+                <td class="phone-cell">11-5678-1234</td>
+                <td><span class="status-badge active">Activo</span></td>
+                <td class="date-cell">13/3/2025</td>
+                <td class="actions-cell">
+                  <button class="action-btn edit" title="Edit" onclick="editClient(2)">✏️</button>
+                  <button class="action-btn pause" title="Pause" onclick="pauseClient(2)">⏸️</button>
+                  <button class="action-btn delete" title="Delete" onclick="deleteClient(2)">❌</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="id-cell">3</td>
+                <td class="name-cell">Carlos</td>
+                <td class="name-cell">López</td>
+                <td class="email-cell">carlos@example.com</td>
+                <td class="phone-cell">11-9012-3456</td>
+                <td><span class="status-badge active">Activo</span></td>
+                <td class="date-cell">13/8/2025</td>
+                <td class="actions-cell">
+                  <button class="action-btn edit" title="Edit" onclick="editClient(3)">✏️</button>
+                  <button class="action-btn pause" title="Pause" onclick="pauseClient(3)">⏸️</button>
+                  <button class="action-btn delete" title="Delete" onclick="deleteClient(3)">❌</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="id-cell">4</td>
+                <td class="name-cell">María</td>
+                <td class="name-cell">Rodríguez</td>
+                <td class="email-cell">maria@example.com</td>
+                <td class="phone-cell">11-3456-7890</td>
+                <td><span class="status-badge inactive">Inactivo</span></td>
+                <td class="date-cell">13/1/2025</td>
+                <td class="actions-cell">
+                  <button class="action-btn edit" title="Edit" onclick="editClient(4)">✏️</button>
+                  <button class="action-btn pause" title="Pause" onclick="pauseClient(4)">⏸️</button>
+                  <button class="action-btn delete" title="Delete" onclick="deleteClient(4)">❌</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Filtros ocultos por ahora - se pueden mostrar con un botón adicional -->
+      <div class="filters" style="display:none">
         <select id="client-active">
           <option value="">Todos</option>
           <option value="true">Activos</option>
@@ -36,26 +208,6 @@
         </select>
         <button onclick="filterClients()" class="btn">Filtrar</button>
         <button onclick="clearClientFilters()" class="btn">Limpiar</button>
-      </div>
-      <button onclick="showClientForm()" class="btn btn-primary">Nuevo Cliente</button>
-      <div class="table-wrapper">
-        <table id="clients-table" class="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Nombre</th>
-              <th>Apellido</th>
-              <th>Email</th>
-              <th>Teléfono</th>
-              <th>Estado</th>
-              <th>Inicio</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- Los datos se llenarán por JS -->
-          </tbody>
-        </table>
       </div>
     </section>
 
@@ -140,5 +292,6 @@
 
   <script type="module" src="/js/api.js?v=20250912"></script>
   <script type="module" src="/js/ui.js?v=20250912"></script>
+  <script src="/js/navbar.js"></script>
 </body>
 </html>

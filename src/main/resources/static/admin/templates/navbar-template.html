@@ -1,0 +1,51 @@
+<!-- Navbar Component Template -->
+<!-- Copia este código en cualquier página donde quieras el navbar -->
+
+<!-- En el <head>, añade estos CSS: -->
+<!--
+<link rel="stylesheet" href="/css/components.css">
+-->
+
+<!-- En el <body>, añade la clase "with-navbar": -->
+<!--
+<body class="with-navbar">
+-->
+
+<!-- Navbar HTML: -->
+<nav class="navbar">
+    <a href="/admin/dashboard.html" class="navbar-brand">GYM BOX</a>
+
+    <ul class="navbar-nav">
+        <li><a href="/admin/dashboard.html">Dashboard</a></li>
+        <li><a href="#" onclick="showSection('clients')" data-section="clients">Clientes</a></li>
+        <li><a href="#" onclick="showSection('payments')" data-section="payments">Pagos</a></li>
+        <li><a href="#" onclick="showSection('reports')" data-section="reports">Reportes</a></li>
+    </ul>
+
+    <div class="navbar-user">
+        <span>Bienvenido, Admin</span>
+        <button onclick="logout()" class="btn-logout">Cerrar Sesión</button>
+    </div>
+</nav>
+
+<!-- Al final del body, antes de cerrar </body>, añade: -->
+<!--
+<script src="/js/navbar.js"></script>
+-->
+
+<!--
+INSTRUCCIONES DE USO:
+
+1. Añade el CSS de componentes en el <head>:
+   <link rel="stylesheet" href="/css/components.css">
+
+2. Añade la clase "with-navbar" al <body>:
+   <body class="with-navbar">
+
+3. Copia el código HTML del navbar donde quieras que aparezca
+
+4. Añade el JavaScript al final:
+   <script src="/js/navbar.js"></script>
+
+5. Para páginas diferentes al dashboard, modifica los enlaces del navbar-nav según corresponda
+-->
