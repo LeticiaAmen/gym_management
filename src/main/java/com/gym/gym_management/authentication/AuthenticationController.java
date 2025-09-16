@@ -72,12 +72,17 @@ public class AuthenticationController {
      * Recibe email y contraseña, los valida y, si son correctos,
      * genera un token JWT que el cliente usará para autenticarse en futuras peticiones.
      *
-     * @param request objeto con email y contraseña del usuario.
-     * @return token JWT en caso de éxito, o estado UNAUTHORIZED si las credenciales son inválidas.
+     * @param request objeto con email y contraseña del usuario (opcional para evitar 400 si no se envía body).
+     * @return token JWT en caso de éxito, o estado UNAUTHORIZED si las credenciales son inválidas o faltan.
      */
     @PostMapping("/login")
-    public ResponseEntity<AuthenticationResponse> login (@RequestBody AuthenticationRequest request) {
+    public ResponseEntity<AuthenticationResponse> login (@RequestBody(required = false) AuthenticationRequest request) {
         try{
+            // Validación temprana: si no hay body o faltan credenciales, devolver 401
+            if (request == null || request.getEmail() == null || request.getPassword() == null
+                    || request.getEmail().isBlank() || request.getPassword().isBlank()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
             //Autenticación de usuario con las credenciales proporcionadas
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())

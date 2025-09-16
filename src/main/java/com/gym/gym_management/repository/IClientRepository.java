@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.time.LocalDate;
 
 @Repository
 public interface IClientRepository extends JpaRepository<Client, Long> {
@@ -18,13 +19,19 @@ public interface IClientRepository extends JpaRepository<Client, Long> {
 
     boolean existsByEmail(String email);
 
-    // Nuevo: para validar duplicados excluyendo el propio registro
+    // para validar duplicados excluyendo el propio registro
     boolean existsByEmailAndIdNot(String email, Long id);
 
-    // Nuevo: búsqueda por texto (nombre, apellido o email) y activo opcional
+    // búsqueda por texto (nombre, apellido o email) y activo opcional
     @Query("SELECT c FROM Client c WHERE (:q IS NULL OR lower(c.firstName) LIKE lower(concat('%',:q,'%')) " +
             "OR lower(c.lastName) LIKE lower(concat('%',:q,'%')) " +
             "OR lower(c.email) LIKE lower(concat('%',:q,'%'))) " +
             "AND (:active IS NULL OR c.isActive = :active)")
     List<Client> search(@Param("q") String q, @Param("active") Boolean active);
+
+    // Método para contar clientes activos (para dashboard)
+    long countByIsActiveTrue();
+
+    // Método para obtener clientes registrados recientemente
+    List<Client> findByStartDateAfterOrderByStartDateDesc(LocalDate date);
 }

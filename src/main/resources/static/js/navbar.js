@@ -55,19 +55,23 @@ class Navbar {
 
     // Mostrar el dashboard principal
     showDashboard() {
-        // Ocultar todas las secciones
+        // Si existe showSection centralizado, usarlo para evitar duplicar lógica
+        if (typeof window.showSection === 'function') {
+            window.showSection('dashboard');
+            return;
+        }
+
+        // Fallback: ocultar/mostrar secciones manualmente
         const sections = document.querySelectorAll('.section');
         sections.forEach(section => {
             section.style.display = 'none';
         });
-
-        // Mostrar solo el dashboard
         const dashboardSection = document.getElementById('dashboard-section');
         if (dashboardSection) {
             dashboardSection.style.display = 'block';
         }
 
-        // Actualizar estadísticas del dashboard
+        // Delegar carga de datos reales
         this.updateDashboardStats();
     }
 
@@ -135,9 +139,7 @@ class Navbar {
         try {
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
             if (token) {
-                // Decodificar token JWT si es necesario
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                return payload;
+                return JSON.parse(atob(token.split('.')[1]));
             }
         } catch (error) {
             console.error('Error al obtener información del usuario:', error);
@@ -158,19 +160,14 @@ class Navbar {
 
     // Actualizar estadísticas del dashboard
     updateDashboardStats() {
-        // Aquí puedes hacer llamadas a la API para obtener datos reales
-        // Por ahora mostramos datos de ejemplo
-
-        // Simular carga de datos
-        setTimeout(() => {
-            const activeClientsEl = document.getElementById('active-clients-count');
-            const monthlyRevenueEl = document.getElementById('monthly-revenue');
-            const pendingPaymentsEl = document.getElementById('pending-payments-count');
-
-            if (activeClientsEl) activeClientsEl.textContent = '234';
-            if (monthlyRevenueEl) monthlyRevenueEl.textContent = '$12,450';
-            if (pendingPaymentsEl) pendingPaymentsEl.textContent = '18';
-        }, 100);
+        // Delegar al módulo principal si existe
+        if (typeof window.loadDashboardStats === 'function') {
+            window.loadDashboardStats();
+        }
+        if (typeof window.loadRecentActivities === 'function') {
+            window.loadRecentActivities();
+        }
+        // Evitar cualquier seteo hardcodeado aquí.
     }
 }
 
@@ -182,7 +179,7 @@ function logout() {
 
 // Función global para que otras partes de la app puedan actualizar el navbar
 function updateNavbarActiveSection(sectionName) {
-    Navbar.setActiveSection(sectionName);
+
 }
 
 // Interceptar las llamadas a showSection existentes para mantener el navbar actualizado
@@ -198,7 +195,7 @@ if (typeof window.showSection === 'function') {
 
 // Inicializar navbar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    const navbar = new Navbar();
+    new Navbar();
 
     // Si estamos en el dashboard, marcar la primera sección como activa por defecto
     if (window.location.pathname.includes('dashboard')) {

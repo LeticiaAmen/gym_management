@@ -1,65 +1,94 @@
-<!-- Formulario de Pago -->
-<div class="modal-content">
-    <h3>Registrar Pago</h3>
-    <form id="payment-form">
-        <div id="payment-form-error" class="form-error"></div>
+<!-- Formulario de Pago  -->
+<div class="modal-content modern-modal">
+  <div class="modal-header">
+    <h2>Registrar Pago</h2>
+    <button type="button" class="modal-close" onclick="closeModal('payment-modal')">×</button>
+  </div>
+  <div class="modal-body">
+    <div id="payment-form-error" class="form-error" aria-live="polite"></div>
+    <form id="payment-form" class="modern-form">
+
+      <!-- Selección de cliente y monto (cliente con búsqueda rápida) -->
+      <div class="form-row">
         <div class="form-group">
-            <label for="clientId">Cliente *</label>
-            <select id="clientId" name="clientId" required></select>
-        </div>
-        <div class="form-group">
-            <label for="amount">Monto *</label>
-            <input type="number" id="amount" name="amount" step="0.01" required>
-        </div>
-        <div class="form-group">
-            <label for="method">Método de pago *</label>
-            <select id="method" name="method" required>
-                <option value="CASH">Efectivo</option>
-                <option value="DEBIT">Débito</option>
-                <option value="CREDIT">Crédito</option>
-                <option value="TRANSFER">Transferencia</option>
-                <option value="OTHER">Otro</option>
-            </select>
+          <label for="clientSearch">Cliente <span class="required">*</span></label>
+          <input type="text" id="clientSearch" class="form-input" list="clientOptions" placeholder="ID, nombre o email" autocomplete="off" aria-describedby="clientSearchHelp" />
+          <datalist id="clientOptions"></datalist>
+          <input type="hidden" id="clientId" name="clientId" />
+          <small id="clientSearchHelp" class="help-text">Escribe para buscar. También puedes pegar el ID directamente.</small>
         </div>
         <div class="form-group">
-            <label for="paymentDate">Fecha de pago</label>
-            <input type="date" id="paymentDate" name="paymentDate">
+          <label for="amount">Monto <span class="required">*</span></label>
+          <input type="number" id="amount" name="amount" class="form-input" step="0.01" min="0.01" required placeholder="Ej. 5000" />
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="periodMonth">Mes *</label>
-                <select id="periodMonth" name="periodMonth" required>
-                    <option value="1">01</option>
-                    <option value="2">02</option>
-                    <option value="3">03</option>
-                    <option value="4">04</option>
-                    <option value="5">05</option>
-                    <option value="6">06</option>
-                    <option value="7">07</option>
-                    <option value="8">08</option>
-                    <option value="9">09</option>
-                    <option value="10">10</option>
-                    <option value="11">11</option>
-                    <option value="12">12</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="periodYear">Año *</label>
-                <input type="number" id="periodYear" name="periodYear" min="2000" required>
-            </div>
+      </div>
+
+      <!-- Método y fecha -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="method">Método de pago <span class="required">*</span></label>
+          <select id="method" name="method" class="form-input" required>
+            <option value="CASH">Efectivo</option>
+            <option value="DEBIT">Débito</option>
+            <option value="CREDIT">Crédito</option>
+            <option value="TRANSFER">Transferencia</option>
+            <option value="OTHER">Otro</option>
+          </select>
         </div>
-        <fieldset class="form-group">
-            <legend>Validez</legend>
-            <label><input type="radio" name="validityType" value="monthly" checked> Mensual (30 días)</label>
-            <label><input type="radio" name="validityType" value="days"> Por días</label>
-        </fieldset>
-        <div class="form-group" id="durationDaysGroup" style="display:none">
-            <label for="durationDays">Duración (días)</label>
-            <input type="number" id="durationDays" name="durationDays" min="1" placeholder="Ej. 10">
+        <div class="form-group">
+          <label for="paymentDate">Fecha de pago</label>
+          <input type="date" id="paymentDate" name="paymentDate" class="form-input" />
         </div>
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Registrar</button>
-            <button type="button" class="btn" onclick="closeModal('payment-modal')">Cancelar</button>
+      </div>
+
+      <!-- Período (mes / año) -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="periodMonth">Mes <span class="required">*</span></label>
+          <select id="periodMonth" name="periodMonth" class="form-input" required>
+            <option value="1">01</option>
+            <option value="2">02</option>
+            <option value="3">03</option>
+            <option value="4">04</option>
+            <option value="5">05</option>
+            <option value="6">06</option>
+            <option value="7">07</option>
+            <option value="8">08</option>
+            <option value="9">09</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+          </select>
         </div>
+        <div class="form-group">
+          <label for="periodYear">Año <span class="required">*</span></label>
+          <input type="number" id="periodYear" name="periodYear" class="form-input" min="2000" required placeholder="2025" />
+        </div>
+      </div>
+
+      <!-- Tipo de validez -->
+      <fieldset class="form-group grouped-fieldset">
+        <legend>Validez</legend>
+        <div class="inline-options">
+          <label><input type="radio" name="validityType" value="monthly" checked> Mensual (1 mes)</label>
+          <label><input type="radio" name="validityType" value="days"> Por días</label>
+        </div>
+        <p class="help-text">Elija "Por días" para pases especiales (ej. 10 días). Caso contrario se calcula un mes desde la fecha de pago.</p>
+      </fieldset>
+
+      <!-- Duración personalizada -->
+      <div class="form-group" id="durationDaysGroup" style="display:none">
+        <label for="durationDays">Duración (días) <span class="required">*</span></label>
+        <input type="number" id="durationDays" name="durationDays" class="form-input" min="1" placeholder="Ej. 10" />
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary-modern">
+          <span class="btn-icon">💾</span>
+          Registrar Pago
+        </button>
+        <button type="button" class="btn-secondary-modern" onclick="closeModal('payment-modal')">Cancelar</button>
+      </div>
     </form>
+  </div>
 </div>

@@ -42,17 +42,26 @@ public class Payment {
 
     // Método de pago
     @Enumerated(EnumType.STRING)
+    @Column(name = "method", length = 20)
     private PaymentMethod method;
 
-    // Período informado por el pago (mes/año)
+    // Período informado por el pago (mes/año) - evitar palabras reservadas en H2
+    @Column(name = "period_month")
     private Integer month;
+
+    @Column(name = "period_year")
     private Integer year;
+
+    /** Duración personalizada en días (opcional). Si es null, se asume mensual (1 mes). */
+    @Column(name = "duration_days")
+    private Integer durationDays;
 
     /**
      * Estado del pago (ej: PENDIENTE, PAGADO, VENCIDO).
      * @Enumerated sin tipo explícito usa ORDINAL por defecto, pero es recomendable usar STRING.
      */
     @Enumerated(EnumType.STRING)
+    @Column(name = "payment_state", length = 20)
     private PaymentState paymentState;
 
     /**
@@ -79,7 +88,12 @@ public class Payment {
             paymentDate = LocalDate.now();
         }
         if (expirationDate == null) {
-            expirationDate = paymentDate.plusMonths(1); // Suponiendo que la mensualidad es por un mes
+            // Si se indicó duración por días, usarla; de lo contrario, mensual
+            if (durationDays != null && durationDays > 0) {
+                expirationDate = paymentDate.plusDays(durationDays);
+            } else {
+                expirationDate = paymentDate.plusMonths(1);
+            }
         }
     }
 
@@ -198,6 +212,14 @@ public class Payment {
 
     public void setExpirationDate(LocalDate expirationDate) {
         this.expirationDate = expirationDate;
+    }
+
+    public Integer getDurationDays() {
+        return durationDays;
+    }
+
+    public void setDurationDays(Integer durationDays) {
+        this.durationDays = durationDays;
     }
 
     public void anularPago(Long adminId, String reason) {

@@ -50,6 +50,16 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
+		<!-- Validación Bean Validation (incluye Hibernate Validator) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<!-- Soporte de fechas Java 8+ para Jackson (LocalDate, etc.) -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jsr310</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.thymeleaf.extras</groupId>
 			<artifactId>thymeleaf-extras-springsecurity6</artifactId>
@@ -102,11 +112,14 @@
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Eliminar dependencia cruda de Jakarta Validation para usar el starter -->
+		<!--
 		<dependency>
 			<groupId>jakarta.validation</groupId>
 			<artifactId>jakarta.validation-api</artifactId>
 			<version>3.0.2</version>
 		</dependency>
+		-->
 		<!-- Nota: Lombok eliminado para evitar incompatibilidades con determinadas versiones de JDK -->
 		<!-- Si se desea usar Lombok, elegir versión compatible con el JDK o ejecutar con JDK 17 -->
 	</dependencies>

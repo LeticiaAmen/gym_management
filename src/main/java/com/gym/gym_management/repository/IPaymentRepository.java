@@ -44,4 +44,12 @@ public interface IPaymentRepository extends JpaRepository<Payment, Long> {
     // Último pago efectivo: prioridad por expirationDate y si es null usa paymentDate
     @Query("SELECT p FROM Payment p WHERE p.client.id = :clientId AND p.voided = false ORDER BY COALESCE(p.expirationDate, p.paymentDate) DESC")
     Payment findLastEffectiveByClient(@Param("clientId") Long clientId);
+
+    // Método para contar pagos expirados (para dashboard) - corregido el nombre del campo
+    long countByExpirationDateBeforeAndPaymentStateAndVoidedFalse(LocalDate date, PaymentState paymentState);
+
+    // Métodos para actividades recientes
+    List<Payment> findByPaymentDateAfterAndVoidedFalseOrderByPaymentDateDesc(LocalDate date);
+
+    List<Payment> findByExpirationDateBetweenAndVoidedFalseOrderByExpirationDateAsc(LocalDate startDate, LocalDate endDate);
 }

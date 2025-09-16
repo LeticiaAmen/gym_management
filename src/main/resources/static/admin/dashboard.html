@@ -13,14 +13,14 @@
     <a href="/admin/dashboard.html" class="navbar-brand">GYM BOX</a>
 
     <ul class="navbar-nav">
-      <li><a href="#" data-section="dashboard" class="active">Dashboard</a></li>
-      <li><a href="#" data-section="clients">Clients</a></li>
-      <li><a href="#" data-section="payments">Payments</a></li>
-      <li><a href="#" data-section="reports">Reports</a></li>
+      <li><a href="#" data-section="dashboard" class="active">Panel</a></li>
+      <li><a href="#" data-section="clients">Clientes</a></li>
+      <li><a href="#" data-section="payments">Pagos</a></li>
+      <li><a href="#" data-section="reports">Reportes</a></li>
     </ul>
 
     <div class="navbar-user">
-      <button onclick="logout()" class="btn-logout">Logout</button>
+      <button onclick="logout()" class="btn-logout">Cerrar sesión</button>
     </div>
   </nav>
 
@@ -28,8 +28,8 @@
     <!-- Sección Dashboard Principal -->
     <section id="dashboard-section" class="section">
       <div class="dashboard-header">
-        <h1>Welcome back!</h1>
-        <p class="dashboard-subtitle">Here's what's happening at GYM BOX today.</p>
+        <h1>¡Bienvenido de nuevo!</h1>
+        <p class="dashboard-subtitle">Esto es lo que está pasando en GYM BOX hoy.</p>
       </div>
 
       <!-- Tarjetas de estadísticas -->
@@ -37,8 +37,8 @@
         <div class="stat-card active-clients">
           <div class="stat-content">
             <div class="stat-info">
-              <h3>Active Clients</h3>
-              <span class="stat-number" id="active-clients-count">234</span>
+              <h3>Clientes activos</h3>
+              <span class="stat-number" id="active-clients-count">--</span>
             </div>
             <div class="stat-icon">
               <i class="icon-users">👥</i>
@@ -46,12 +46,11 @@
           </div>
         </div>
 
-
         <div class="stat-card pending-payments">
           <div class="stat-content">
             <div class="stat-info">
-              <h3>Pending Payments</h3>
-              <span class="stat-number" id="pending-payments-count">18</span>
+              <h3>Pagos pendientes</h3>
+              <span class="stat-number" id="pending-payments-count">--</span>
             </div>
             <div class="stat-icon">
               <i class="icon-warning">⚠️</i>
@@ -62,31 +61,9 @@
 
       <!-- Actividad reciente -->
       <div class="recent-activity">
-        <h2 style="color: white">Recent Activity</h2>
+        <h2 style="color: white">Actividad reciente</h2>
         <div class="activity-list" id="recent-activity-list">
-          <div class="activity-item">
-            <div class="activity-indicator new-client"></div>
-            <div class="activity-content">
-              <span class="activity-title">New client registered: John Smith</span>
-              <span class="activity-time">2 hours ago</span>
-            </div>
-          </div>
-
-          <div class="activity-item">
-            <div class="activity-indicator payment"></div>
-            <div class="activity-content">
-              <span class="activity-title">Payment received: $150 from Maria Garcia</span>
-              <span class="activity-time">4 hours ago</span>
-            </div>
-          </div>
-
-          <div class="activity-item">
-            <div class="activity-indicator expiring"></div>
-            <div class="activity-content">
-              <span class="activity-title">Membership expiring: David Johnson</span>
-              <span class="activity-time">6 hours ago</span>
-            </div>
-          </div>
+          <!-- Los datos se cargarán dinámicamente con JavaScript -->
         </div>
       </div>
     </section>
@@ -95,186 +72,163 @@
     <section id="clients-section" class="section" style="display:none">
       <div class="section-header">
         <div class="section-title">
-          <h1>Clients Management</h1>
-          <p class="section-subtitle">Manage your gym members and their information</p>
+          <h1>Gestión de Clientes</h1>
+          <p class="section-subtitle">Administra tus socios y su información</p>
         </div>
-        <button onclick="showClientForm()" class="btn-new-client">
+        <button onclick="showClientForm()" class="btn-new-action">
           <span class="btn-icon">+</span>
-          New Client
+          Nuevo cliente
         </button>
       </div>
 
-      <div class="search-section">
-        <div class="search-container">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="client-q" class="search-input" placeholder="Search clients by name or email..." />
+      <!-- Panel de filtros amigable -->
+      <div class="filters clients-filters">
+        <div class="filter-group">
+          <label for="client-q">Búsqueda</label>
+          <input type="text" id="client-q" class="search-input" placeholder="Nombre, apellido o email…" aria-label="Buscar clientes por nombre, apellido o email" />
         </div>
+        <div class="filter-group">
+          <label for="client-active">Estado del cliente</label>
+          <select id="client-active" aria-label="Filtrar por estado de cliente">
+            <option value="">Todos</option>
+            <option value="true">Activos</option>
+            <option value="false">Inactivos</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="client-payment">Estado de pago</label>
+          <select id="client-payment" aria-label="Filtrar por estado de pago">
+            <option value="">Pago: todos</option>
+            <option value="PENDING">Pendiente</option>
+            <option value="UP_TO_DATE">Al día</option>
+            <option value="EXPIRED">Vencido</option>
+          </select>
+        </div>
+        <button onclick="filterClients()" class="btn-filter-clients" title="Aplicar filtros">Filtrar</button>
+        <button onclick="clearClientFilters()" class="btn-clear-clients" title="Limpiar filtros">Limpiar</button>
+        <p class="filters-hint">Todos los filtros son opcionales. Puedes combinar búsqueda por texto con estado del cliente y de pago.</p>
       </div>
 
       <div class="clients-table-container">
         <div class="table-header">
-          <h3>All Clients (<span id="clients-count">5</span>)</h3>
+          <h3>Todos los clientes (<span id="clients-count">--</span>)</h3>
         </div>
 
         <div class="modern-table-wrapper">
           <table id="clients-table" class="modern-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>First Name</th>
-                <th>Last Name</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
                 <th>Email</th>
-                <th>Phone</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Actions</th>
+                <th>Teléfono</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              <!-- Los datos se llenarán por JS - Datos de ejemplo: -->
-              <tr>
-                <td class="id-cell">1</td>
-                <td class="name-cell">Juan</td>
-                <td class="name-cell">Pérez</td>
-                <td class="email-cell">juan@example.com</td>
-                <td class="phone-cell">11-1234-5678</td>
-                <td><span class="status-badge active">Activo</span></td>
-                <td class="date-cell">13/6/2025</td>
-                <td class="actions-cell">
-                  <button class="action-btn edit" title="Edit" onclick="editClient(1)">✏️</button>
-                  <button class="action-btn pause" title="Pause" onclick="pauseClient(1)">⏸️</button>
-                  <button class="action-btn delete" title="Delete" onclick="deleteClient(1)">❌</button>
-                </td>
-              </tr>
-              <tr>
-                <td class="id-cell">2</td>
-                <td class="name-cell">Ana</td>
-                <td class="name-cell">García</td>
-                <td class="email-cell">ana@example.com</td>
-                <td class="phone-cell">11-5678-1234</td>
-                <td><span class="status-badge active">Activo</span></td>
-                <td class="date-cell">13/3/2025</td>
-                <td class="actions-cell">
-                  <button class="action-btn edit" title="Edit" onclick="editClient(2)">✏️</button>
-                  <button class="action-btn pause" title="Pause" onclick="pauseClient(2)">⏸️</button>
-                  <button class="action-btn delete" title="Delete" onclick="deleteClient(2)">❌</button>
-                </td>
-              </tr>
-              <tr>
-                <td class="id-cell">3</td>
-                <td class="name-cell">Carlos</td>
-                <td class="name-cell">López</td>
-                <td class="email-cell">carlos@example.com</td>
-                <td class="phone-cell">11-9012-3456</td>
-                <td><span class="status-badge active">Activo</span></td>
-                <td class="date-cell">13/8/2025</td>
-                <td class="actions-cell">
-                  <button class="action-btn edit" title="Edit" onclick="editClient(3)">✏️</button>
-                  <button class="action-btn pause" title="Pause" onclick="pauseClient(3)">⏸️</button>
-                  <button class="action-btn delete" title="Delete" onclick="deleteClient(3)">❌</button>
-                </td>
-              </tr>
-              <tr>
-                <td class="id-cell">4</td>
-                <td class="name-cell">María</td>
-                <td class="name-cell">Rodríguez</td>
-                <td class="email-cell">maria@example.com</td>
-                <td class="phone-cell">11-3456-7890</td>
-                <td><span class="status-badge inactive">Inactivo</span></td>
-                <td class="date-cell">13/1/2025</td>
-                <td class="actions-cell">
-                  <button class="action-btn edit" title="Edit" onclick="editClient(4)">✏️</button>
-                  <button class="action-btn pause" title="Pause" onclick="pauseClient(4)">⏸️</button>
-                  <button class="action-btn delete" title="Delete" onclick="deleteClient(4)">❌</button>
-                </td>
-              </tr>
+              <!-- Los datos se cargarán dinámicamente con JavaScript -->
             </tbody>
           </table>
         </div>
-      </div>
-
-      <!-- Filtros ocultos por ahora - se pueden mostrar con un botón adicional -->
-      <div class="filters" style="display:none">
-        <select id="client-active">
-          <option value="">Todos</option>
-          <option value="true">Activos</option>
-          <option value="false">Inactivos</option>
-        </select>
-        <select id="client-payment">
-          <option value="">Pago: todos</option>
-          <option value="PENDING">Pendiente</option>
-          <option value="UP_TO_DATE">Al día</option>
-          <option value="EXPIRED">Vencido</option>
-        </select>
-        <button onclick="filterClients()" class="btn">Filtrar</button>
-        <button onclick="clearClientFilters()" class="btn">Limpiar</button>
       </div>
     </section>
 
     <!-- Sección Pagos -->
     <section id="payments-section" class="section" style="display:none">
-      <h2>Gestión de Pagos</h2>
-      <div class="filters">
-        <select id="payment-client">
-          <option value="">Todos los clientes</option>
-          <!-- Se llena por JS con (id) Nombre Apellido (email) -->
-        </select>
-        <input type="date" id="date-from">
-        <input type="date" id="date-to">
-        <select id="payment-state">
-          <option value="">Todos los estados</option>
-          <option value="PENDING">Pendiente</option>
-          <option value="UP_TO_DATE">Al día</option>
-          <option value="EXPIRED">Vencido</option>
-          <option value="VOIDED">Anulado</option>
-        </select>
-        <button onclick="filterPayments()" class="btn">Filtrar</button>
-        <button id="btn-clear-payments" onclick="clearPaymentFilters()" class="btn">Limpiar</button>
+      <div class="section-header">
+        <div class="section-title">
+          <h1>Gestión de Pagos</h1>
+          <p class="section-subtitle">Consulta, registra y anula pagos de los clientes</p>
+        </div>
+        <button onclick="showPaymentForm()" class="btn-new-action">
+          <span class="btn-icon">+</span>
+          Registrar pago
+        </button>
       </div>
-      <button onclick="showPaymentForm()" class="btn btn-primary">Registrar Pago</button>
-      <div class="table-wrapper">
-        <table id="payments-table" class="table">
+      <div class="filters payments-filters">
+        <div class="filter-group">
+          <label for="payment-client-q">Cliente</label>
+          <input id="payment-client-q" list="payment-client-options" placeholder="Nombre, apellido o email…" aria-label="Filtrar pagos por cliente (nombre, apellido o email)" title="Escribe nombre, apellido o email del cliente" />
+          <datalist id="payment-client-options"></datalist>
+        </div>
+        <div class="filter-group">
+          <label for="date-from">Desde (incluye)</label>
+          <input type="date" id="date-from" aria-label="Fecha mínima (incluye)" placeholder="Desde" title="Fecha mínima de búsqueda (incluye el día)" />
+        </div>
+        <div class="filter-group">
+          <label for="date-to">Hasta (incluye)</label>
+          <input type="date" id="date-to" aria-label="Fecha máxima (incluye)" placeholder="Hasta" title="Fecha máxima de búsqueda (incluye el día)" />
+        </div>
+        <div class="filter-group">
+          <label for="payment-state">Estado</label>
+          <select id="payment-state" aria-label="Filtrar por estado de pago" title="Estado del pago (opcional)">
+            <option value="">Todos los estados</option>
+            <option value="PENDING">Pendiente</option>
+            <option value="UP_TO_DATE">Al día</option>
+            <option value="EXPIRED">Vencido</option>
+            <option value="VOIDED">Anulado</option>
+          </select>
+        </div>
+        <button onclick="filterPayments()" class="btn-filter-payments" title="Aplicar filtros">Filtrar</button>
+        <button id="btn-clear-payments" onclick="clearPaymentFilters()" class="btn-clear-payments" title="Limpiar filtros">Limpiar</button>
+        <p class="filters-hint">Consejo: todos los filtros son opcionales. Usa "Desde/Hasta" para acotar por fecha de pago.</p>
+      </div>
+      <div class="modern-table-wrapper">
+        <table id="payments-table" class="modern-table">
           <thead>
             <tr>
-              <th>ID</th>
               <th>Cliente</th>
               <th>Monto</th>
               <th>Método</th>
-              <th>Fecha</th>
-              <th>Estado</th>
+              <th>Fecha Pago</th>
+              <th>Tiempo</th>
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody>
-            <!-- Los datos se llenarán por JS -->
-          </tbody>
+          <tbody></tbody>
         </table>
       </div>
     </section>
 
     <!-- Sección Reportes -->
     <section id="reports-section" class="section" style="display:none">
-      <h2>Reportes</h2>
-      <div class="reports-grid">
-        <div class="report-card">
-          <h3>Pagos por Vencer (7 días)</h3>
-          <button onclick="getExpiringReport()" class="btn">Ver Reporte</button>
-        </div>
-        <div class="report-card">
-          <h3>Pagos Vencidos</h3>
-          <button onclick="getOverdueReport()" class="btn">Ver Reporte</button>
-        </div>
-        <div class="report-card">
-          <h3>Flujo de Caja</h3>
-          <div class="date-range">
-            <input type="date" id="cashflow-from">
-            <input type="date" id="cashflow-to">
-          </div>
-          <button onclick="getCashflowReport()" class="btn">Ver Reporte</button>
+      <div class="section-header">
+        <div class="section-title">
+          <h1>Reportes</h1>
+          <p class="section-subtitle">Resumen rápido de membresías e ingresos</p>
         </div>
       </div>
-      <div id="report-results" class="report-results">
-        <!-- Los resultados se mostrarán aquí -->
+
+      <div class="report-stats-grid">
+        <div class="stat-card expired-memberships">
+          <div class="stat-content">
+            <div class="stat-info">
+              <h3>Membresías expiradas</h3>
+              <span class="stat-number" id="report-expired-count">--</span>
+            </div>
+            <div class="stat-icon">⛔</div>
+          </div>
+        </div>
+        <div class="stat-card expiring-memberships">
+          <div class="stat-content">
+            <div class="stat-info">
+              <h3>Por vencer (7 días)</h3>
+              <span class="stat-number" id="report-expiring-count">--</span>
+            </div>
+            <div class="stat-icon">⏳</div>
+          </div>
+        </div>
+        <div class="stat-card monthly-income">
+          <div class="stat-content">
+            <div class="stat-info">
+              <h3>Ingresos del mes</h3>
+              <span class="stat-number" id="report-month-income">--</span>
+            </div>
+            <div class="stat-icon">💰</div>
+          </div>
+        </div>
       </div>
     </section>
   </div>
@@ -290,8 +244,27 @@
     <!-- Formulario de pausa -->
   </div>
 
-  <script type="module" src="/js/api.js?v=20250912"></script>
-  <script type="module" src="/js/ui.js?v=20250912"></script>
-  <script src="/js/navbar.js"></script>
+  <!-- Modal de confirmación -->
+  <div id="confirmation-modal" class="confirmation-modal">
+    <div class="confirmation-content">
+      <div class="confirmation-header">
+        <div id="confirmation-icon" class="confirmation-icon warning">
+          ⚠️
+        </div>
+        <h3 id="confirmation-title" class="confirmation-title">Confirmar acción</h3>
+      </div>
+      <p id="confirmation-message" class="confirmation-message">
+        ¿Estás seguro de que quieres realizar esta acción?
+      </p>
+      <div class="confirmation-actions">
+        <button id="confirmation-cancel" class="btn-cancel">Cancelar</button>
+        <button id="confirmation-confirm" class="btn-confirm">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/api.js?v=20250916"></script>
+  <script type="module" src="/js/ui.js?v=20250916"></script>
+  <script src="/js/navbar.js?v=20250915"></script>
 </body>
 </html>

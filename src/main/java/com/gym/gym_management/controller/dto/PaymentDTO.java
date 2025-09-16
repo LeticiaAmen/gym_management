@@ -5,6 +5,26 @@ import com.gym.gym_management.model.PaymentState;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 
+/**
+ * DTO (Data Transfer Object) que representa los datos expuestos de un pago.
+ * <p>
+ * Se utiliza en la capa de controlador para recibir y devolver información sin exponer
+ * directamente la entidad JPA Payment. Incluye validaciones básicas con anotaciones
+ * de Bean Validation para garantizar coherencia de datos antes de llegar a la capa de servicio.
+ * <p>
+ * Campos relevantes:
+ * <ul>
+ *   <li>clientId: identifica al cliente dueño del pago.</li>
+ *   <li>amount: monto abonado (positivo).</li>
+ *   <li>method: método de pago (enum legible en vez de valores numéricos).</li>
+ *   <li>month/year: período al que se asocia el pago (permite idempotencia).</li>
+ *   <li>paymentDate: fecha en que se registró el pago (puede venir del usuario o default = hoy).</li>
+ *   <li>expirationDate: fecha hasta la cual el pago mantiene vigente la membresía (calculada).</li>
+ *   <li>durationDays: alternativa para membresías de duración personalizada (en lugar de mensual).</li>
+ *   <li>state: estado lógico (UP_TO_DATE, PENDING, EXPIRED, VOIDED).</li>
+ *   <li>voided / voidedBy / voidReason: trazabilidad de anulaciones.</li>
+ * </ul>
+ */
 public class PaymentDTO {
     private Long id;
 
@@ -28,9 +48,9 @@ public class PaymentDTO {
     private Integer year;
 
     private LocalDate paymentDate;
-    private LocalDate expirationDate; // calculada: 30 días (mensual) o durationDays
+    private LocalDate expirationDate; // calculada según lógica (mensual o duración en días)
 
-    // Opcional: duración personalizada en días. Si es null, se asume 30 días
+    // Opcional: duración personalizada en días. Si es null, se asume mensual (1 mes)
     @Min(value = 1, message = "La duración debe ser al menos 1 día")
     private Integer durationDays;
 

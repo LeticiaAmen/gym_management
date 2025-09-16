@@ -18,6 +18,20 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Servicio de dominio para la gestión de pagos de clientes.
+ * <p>
+ * Encapsula reglas de negocio como:
+ * <ul>
+ *     <li>Validaciones de datos de entrada (método, monto, período).</li>
+ *     <li>Idempotencia por combinación (cliente, mes, año) ignorando pagos anulados.</li>
+ *     <li>Cálculo de la fecha de expiración (mensual o por días personalizados).</li>
+ *     <li>Anulación (void) de pagos con auditoría y trazabilidad del administrador.</li>
+ *     <li>Cálculo dinámico del estado de un período (PENDING / UP_TO_DATE / EXPIRED).</li>
+ *     <li>Consultas para recordatorios (pagos por expirar y vencidos).</li>
+ * </ul>
+ * Se trabaja siempre con DTOs hacia la capa web para no exponer entidades JPA.
+ */
 @Service
 public class PaymentService {
 
@@ -34,6 +48,12 @@ public class PaymentService {
     private AuditService auditService;
 
     // Registrar pago con validaciones de dominio e idempotencia
+    /**
+     * Idempotencia significa que ejecutar una misma operación varias veces produce exactamente el mismo efecto que ejecutarla una sola vez (no crea efectos acumulativos inesperados).  En este contexto (registro de pagos):
+     * Se asegura que para la combinación cliente + mes + año solo exista un pago vigente (no anulado).
+     * Si se intenta registrar de nuevo el mismo período, se detecta y se rechaza (lanza excepción) evitando duplicados.
+     * Así, reintentos (por fallos de red, doble clic, etc.) no generan pagos adicionales.
+     */
     public PaymentDTO registerPayment(PaymentDTO dto) {
         if (dto.getAmount() == null || dto.getAmount() <= 0) {
             throw new IllegalArgumentException("El monto debe ser mayor a 0");
@@ -56,7 +76,7 @@ public class PaymentService {
         if (paymentRepository.existsByClient_IdAndMonthAndYearAndVoidedFalse(dto.getClientId(), dto.getMonth(), dto.getYear())) {
             throw new IllegalStateException("Ya existe un pago válido para ese período");
         }
-        // Fecha de pago (opcional). Prohibir futura si negocio lo requiere
+        // Fecha de pago (opcional).
         LocalDate payDate = dto.getPaymentDate() != null ? dto.getPaymentDate() : LocalDate.now();
         if (dto.getPaymentDate() != null && payDate.isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("La fecha de pago no puede ser futura");
@@ -69,7 +89,6 @@ public class PaymentService {
             if (durationDays < 1) throw new IllegalArgumentException("La duración debe ser al menos 1 día");
             expiration = payDate.plusDays(durationDays);
         } else {
-            // Mensual: hasta el mismo día del mes siguiente (ej. 15/08 → 15/09)
             expiration = payDate.plusMonths(1);
         }
 
@@ -78,6 +97,7 @@ public class PaymentService {
         payment.setState(PaymentState.UP_TO_DATE);
         payment.setPaymentDate(payDate);
         payment.setExpirationDate(expiration);
+        payment.setDurationDays(durationDays); // persistimos la duración
 
         Payment saved = paymentRepository.save(payment);
         auditService.logPaymentCreation(saved); // Auditoría mínima
@@ -135,6 +155,18 @@ public class PaymentService {
         );
     }
 
+    /**
+     * Cuenta pagos con estado EXPIRED cuya expirationDate es anterior a hoy y no están anulados.
+     * Útil para métricas de dashboard.
+     * @return cantidad de pagos expirados vigentes (no voided).
+     */
+    public long countExpiredPayments() {
+        LocalDate today = LocalDate.now();
+        return paymentRepository.countByExpirationDateBeforeAndPaymentStateAndVoidedFalse(
+                today, PaymentState.EXPIRED
+        );
+    }
+
     // ===== Estado de período (sin persistir) =====
     public LocalDate computeDueDate(int month, int year) {
         if (month < 1 || month > 12) throw new IllegalArgumentException("El mes debe estar entre 1 y 12");
@@ -169,6 +201,7 @@ public class PaymentService {
         dto.setYear(payment.getYear());
         dto.setPaymentDate(payment.getPaymentDate());
         dto.setExpirationDate(payment.getExpirationDate());
+        dto.setDurationDays(payment.getDurationDays()); // incluir duración
         dto.setState(payment.getState());
         dto.setVoided(payment.isVoided());
         dto.setVoidedBy(payment.getVoidedBy());
@@ -183,6 +216,7 @@ public class PaymentService {
         payment.setMonth(dto.getMonth());
         payment.setYear(dto.getYear());
         payment.setPaymentDate(dto.getPaymentDate());
+        payment.setDurationDays(dto.getDurationDays()); // mapear duración desde DTO
         return payment;
     }
 }

@@ -134,6 +134,11 @@ public class ClientService {
         return toDTO(updated);
     }
 
+    // Métodos para dashboard
+    public long countActiveClients() {
+        return clientRepository.countByIsActiveTrue();
+    }
+
     // Métodos auxiliares
     private ClientDTO toDTO(Client client) {
         ClientDTO dto = new ClientDTO();

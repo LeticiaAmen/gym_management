@@ -208,26 +208,44 @@ body.with-navbar {
     margin: 0;
 }
 
-.btn-new-client {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+/* === Botón de acción unificado (Nuevo cliente / Registrar pago) === */
+.btn-new-action,
+.btn-new-client,
+.btn-new-payment {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     color: white;
     border: none;
-    padding: 0.5rem 0.75rem;
+    padding: 0.4rem 0.65rem;
     border-radius: 6px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+    box-shadow: 0 2px 6px rgba(59,130,246,0.35);
     text-decoration: none;
     width: fit-content;
-    flex-shrink: 0;
 }
 
-.btn-new-client:hover {
+.btn-new-action:hover,
+.btn-new-client:hover,
+.btn-new-payment:hover {
     transform: translateY(-1px);
-    box-shadow: 0 3px 10px rgba(245, 158, 11, 0.4);
+    box-shadow: 0 4px 10px rgba(59,130,246,0.45);
+}
+
+.btn-new-action .btn-icon,
+.btn-new-client .btn-icon,
+.btn-new-payment .btn-icon { font-size: 0.9rem; }
+
+/* Asegurar posición a la derecha dentro de section-header */
+.section-header .btn-new-action,
+.section-header .btn-new-client,
+.section-header .btn-new-payment {
+    margin-left: auto;
+    align-self: flex-start;
 }
 
 /* Search Section */
@@ -387,6 +405,12 @@ body.with-navbar {
     color: white;
 }
 
+/* === Nuevos estilos para badges de estados de pago === */
+.status-badge.up_to_date { background:#10b981; color:#fff; }
+.status-badge.expired { background:#ef4444; color:#fff; }
+.status-badge.voided { background:#6b7280; color:#fff; }
+/* pending ya existe: .status-badge.pending */
+
 /* Actions Buttons */
 .actions-cell {
     text-align: center;
@@ -451,6 +475,236 @@ body.with-navbar {
 .action-btn:after {
     content: none !important;
 }
+
+/* Acciones en tabla de pagos (reutiliza action-btn si luego se aplica) */
+.payments-table-action-btn {
+    background: transparent;
+    border: 1px solid #4b5563;
+    color: #f87171;
+    padding: 0.35rem .6rem;
+    font-size: 0.65rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .25s ease;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    font-weight: 600;
+}
+.payments-table-action-btn:hover { background:#ef4444; color:#fff; border-color:#ef4444; }
+.payments-table-action-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+/* Filtros de pagos alineados */
+.payments-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(180px, 1fr));
+    column-gap: 1rem;
+    row-gap: 0.75rem;
+    background: #2a2f42;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    align-items: end; /* align inputs by their baselines */
+}
+/* Permitir que cada grupo se adapte sin desbordar (evita solapamientos) */
+.payments-filters .filter-group { min-width: 0; }
+.payments-filters .filter-group label {
+    display: block;
+    color: #8b9dc3;
+    font-size: 0.8rem;
+    margin: 0 0 0.35rem 0;
+    font-weight: 600;
+}
+/* Estilos unificados para inputs y selects en filtros de pagos */
+.payments-filters input,
+.payments-filters select {
+    background: #1f2433;
+    border: 1px solid #3a3f54;
+    color: #fff;
+    padding: 0.55rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    min-width: 0; /* allow shrinking inside grid */
+    width: 100%;
+    box-sizing: border-box;
+    max-width: 100%;
+    margin: 0; /* sobrescribe margenes globales de inputs para alinear en la grilla */
+}
+/* Deja espacio para el icono del datepicker y evita que "muerda" la siguiente columna */
+.payments-filters input[type="date"] { padding-right: 2.25rem; }
+/* Placeholder consistente */
+.payments-filters input::placeholder { color: #8b9dc3; }
+
+/*botones filtro de pagos */
+.btn-filter-payments{
+    grid-column: 1 / 3;
+    width: 100%;
+}
+
+.btn-clear-payments {
+    grid-column: 3 / -1;
+    width: 100%;
+}
+/* Estilo discreto y consistente para botones de pagos */
+.payments-filters .btn-filter-payments,
+.payments-filters .btn-clear-payments {
+    appearance: none;
+    background: transparent;
+    border: 1px solid #3a3f54;
+    color: #8b9dc3;
+    padding: 0.55rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.05s ease;
+    justify-self: stretch;
+}
+.payments-filters .btn-filter-payments:hover,
+.payments-filters .btn-clear-payments:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+    border-color: #4b5563;
+}
+.payments-filters .btn-filter-payments:active,
+.payments-filters .btn-clear-payments:active { transform: translateY(1px); }
+.payments-filters .btn-filter-payments:focus-visible,
+.payments-filters .btn-clear-payments:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+}
+.payments-filters .btn-filter-payments:disabled,
+.payments-filters .btn-clear-payments:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Place the hint under the buttons across full width */
+.payments-filters .filters-hint {
+    grid-column: 1 / -1;
+    color: #e5e7eb;
+    font-size: 0.9rem;
+}
+
+/* Responsive: reduce to 2 columns and then 1 column */
+@media (max-width: 1024px) {
+    .payments-filters { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+    /* Asegurar apilado correcto de botones en 2 columnas */
+    .btn-filter-payments, .btn-clear-payments { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+    .payments-filters { grid-template-columns: 1fr; }
+    /* Asegurar ancho completo en una columna */
+    .btn-filter-payments, .btn-clear-payments { grid-column: 1 / -1; }
+}
+
+/* Override final: asegurar grid en pagos (evita que .filters pise con flex) */
+.filters.payments-filters { display: grid !important; }
+
+/* Filtros de clientes alineados (misma UX que pagos) */
+.clients-filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(200px, 1fr));
+    column-gap: 1rem;
+    row-gap: 0.75rem;
+    background: #2a2f42;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    align-items: end;
+}
+.clients-filters .filter-group label {
+    display: block;
+    color: #8b9dc3;
+    font-size: 0.8rem;
+    margin: 0 0 0.35rem 0;
+    font-weight: 600;
+}
+.clients-filters select,
+.clients-filters input[type="text"] {
+    background: #1f2433;
+    border: 1px solid #3a3f54;
+    color: #fff;
+    padding: 0.55rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+    max-width: 100%;
+}
+/*Botones filtro de clientes*/
+.btn-filter-clients {
+    grid-column: 2 / 3;
+    width: 100%;
+}
+
+.btn-clear-clients {
+    grid-column: 3 / -1;
+    width: 100%;
+}
+/* Estilo discreto y consistente para botones de clientes */
+.clients-filters .btn-filter-clients,
+.clients-filters .btn-clear-clients {
+    appearance: none;
+    background: transparent;
+    border: 1px solid #3a3f54;
+    color: #8b9dc3;
+    padding: 0.55rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.05s ease;
+    justify-self: stretch;
+}
+.clients-filters .btn-filter-clients:hover,
+.clients-filters .btn-clear-clients:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+    border-color: #4b5563;
+}
+.clients-filters .btn-filter-clients:active,
+.clients-filters .btn-clear-clients:active { transform: translateY(1px); }
+.clients-filters .btn-filter-clients:focus-visible,
+.clients-filters .btn-clear-clients:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+}
+.clients-filters .btn-filter-clients:disabled,
+.clients-filters .btn-clear-clients:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.clients-filters .filters-hint {
+    grid-column: 1 / -1;
+    color: #e5e7eb;
+    font-size: 0.9rem;
+}
+/* Responsive: 2 columnas y luego 1 columna */
+@media (max-width: 1024px) {
+    .clients-filters { grid-template-columns: repeat(2, minmax(200px, 1fr)); }
+    /* Apilar botones para evitar problemas con line 3 */
+    .btn-filter-clients, .btn-clear-clients { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+    .clients-filters { grid-template-columns: 1fr; }
+    .btn-filter-clients, .btn-clear-clients { grid-column: 1 / -1; }
+}
+/* Override final para evitar que .filters cambie a flex */
+.filters.clients-filters { display: grid !important; }
+
+/* === Reportes: grilla de 3 cards === */
+.report-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+}
+@media (max-width: 1024px) { .report-stats-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) { .report-stats-grid { grid-template-columns: 1fr; } }
+
+/* Variantes de color para las tarjetas de reportes */
+.stat-card.expired-memberships .stat-number, .stat-card.expired-memberships .stat-icon { color: #ef4444; }
+.stat-card.expiring-memberships .stat-number, .stat-card.expiring-memberships .stat-icon { color: #f59e0b; }
+.stat-card.monthly-income .stat-number, .stat-card.monthly-income .stat-icon { color: #10b981; }
 
 /* Estilos antiguos compatibles */
 .table-wrapper {
@@ -931,6 +1185,10 @@ body.with-navbar {
     }
 
     .btn-new-client {
+        align-self: flex-start;
+    }
+
+    .btn-new-payment {
         align-self: flex-start;
     }
 

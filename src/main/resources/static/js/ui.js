@@ -20,6 +20,27 @@ function formatDateForInput(value) {
     return `${yyyy}-${mm}-${dd}`;
 }
 
+//formatea la duración del pago (solo texto)
+function formatPaymentDuration(payment) {
+    const days = Number(payment && payment.durationDays);
+    if (!Number.isNaN(days) && days > 0) {
+        return `${days} día${days === 1 ? '' : 's'}`;
+    }
+    return '1 mes';
+}
+
+//construye el contenido de la celda "Tiempo" con rango
+function formatPaymentTimeCell(payment) {
+    const durationText = formatPaymentDuration(payment);
+    const pd = payment && payment.paymentDate ? new Date(payment.paymentDate) : null;
+    const ed = payment && payment.expirationDate ? new Date(payment.expirationDate) : null;
+    const fmt = (d) => d ? d.toLocaleDateString() : '-';
+    if (pd && ed) {
+        return `${durationText} • ${fmt(pd)} → ${fmt(ed)}`;
+    }
+    return durationText;
+}
+
 // Determina si el cliente está pausado actualmente (hoy ∈ [pausedFrom, pausedTo])
 function isCurrentlyPaused(client) {
     if (!client || !client.pausedFrom || !client.pausedTo) return false;
@@ -43,11 +64,19 @@ function showSection(sectionId, skipAuto = false) {
     });
     const sec = document.getElementById(`${sectionId}-section`);
     if (sec) sec.style.display = 'block';
+
+    if (sectionId === 'dashboard') {
+        loadDashboardStats(); // Recargar estadísticas cada vez que se muestra el dashboard
+        loadRecentActivities(); // Recargar actividades recientes cada vez que se muestra el dashboard
+    }
     if (sectionId === 'clients') loadClients();
     if (sectionId === 'payments') {
         if (!skipAuto) {
             populatePaymentClientFilter().then(() => loadPayments());
         }
+    }
+    if (sectionId === 'reports') {
+        loadReportSummary();
     }
 }
 
@@ -67,13 +96,17 @@ async function loadClients(filters = null) {
             });
         }
         const response = await apiFetch(url.pathname + (url.search || ''));
-        if (!response.ok) throw new Error('No se pudo cargar la lista de clientes');
+        if (!response.ok) {
+            const tbody = document.querySelector('#clients-table tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7">No se pudo cargar la lista de clientes.</td></tr>';
+            return;
+        }
         const clients = await response.json();
         clientsCache = Array.isArray(clients) ? clients : []; // actualizar caché
         const tbody = document.querySelector('#clients-table tbody');
         if (!tbody) return;
         if (!Array.isArray(clients) || clients.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8">${hasFilters ? 'Sin resultados para el filtro aplicado.' : 'No hay clientes registrados.'}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7">${hasFilters ? 'Sin resultados para el filtro aplicado.' : 'No hay clientes registrados.'}</td></tr>`;
             return;
         }
         tbody.innerHTML = clients.map(client => {
@@ -83,7 +116,7 @@ async function loadClients(filters = null) {
                 : `<button type="button" class="action-btn pause js-pause" data-id="${client.id}" title="Pausar">⏸️</button>`;
             return `
             <tr>
-                <td class="id-cell">${client.id}</td>
+                <!-- ID oculto: no se muestra columna de ID -->
                 <td class="name-cell">${client.firstName || ''}</td>
                 <td class="name-cell">${client.lastName || ''}</td>
                 <td class="email-cell">${client.email || ''}</td>
@@ -103,7 +136,7 @@ async function loadClients(filters = null) {
     } catch (error) {
         console.error('Error al cargar clientes:', error);
         const tbody = document.querySelector('#clients-table tbody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="8">No se pudo cargar la lista de clientes.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7">No se pudo cargar la lista de clientes.</td></tr>';
     }
 }
 
@@ -139,9 +172,7 @@ async function showClientForm() {
     const modal = document.getElementById('client-modal');
     if (!modal) return;
     // Cargar plantilla del formulario
-    const tplRes = await fetch('/admin/templates/client-form.html');
-    const html = await tplRes.text();
-    modal.innerHTML = html;
+    modal.innerHTML = await fetch('/admin/templates/client-form.html').then(r => r.text());
     modal.style.display = 'flex'; // centrado con flex
     document.body.style.overflow = 'hidden'; // bloquear scroll del fondo
 
@@ -278,7 +309,11 @@ function editClient(id) {
 }
 
 // Delegación de eventos en la tabla de clientes
-function onClientsTableClick(e) {
+// llama a showConfirmation(), que es una función asíncrona que devuelve una promise
+//Cuando necesitas esperar el resultado de una operación asíncrona (como la respuesta del usuario en el modal),
+// debes usar await, y para poder usar await,
+// la función contenedora debe ser async.
+async function onClientsTableClick(e) {
     const btn = e.target.closest('button');
     console.debug('[UI] clients table click', { target: e.target, btn });
     if (!btn) return;
@@ -289,18 +324,30 @@ function onClientsTableClick(e) {
         return;
     }
     if (btn.classList.contains('js-view-payments')) {
-        console.debug('[UI] view payments for client', id);
         viewClientPayments(Number(id));
         return;
     }
     if (btn.classList.contains('js-deactivate')) {
-        if (!confirm('¿Confirmás desactivar este cliente?')) return;
+        const client = clientsCache.find(c => String(c.id) === String(id));
+        const clientName = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() : 'este cliente';
+
+        const confirmed = await showConfirmation({
+            title: 'Desactivar cliente',
+            message: `¿Estás seguro de que quieres desactivar a ${clientName}? Esta acción pausará su membresía y ya no podrá acceder al gimnasio.`,
+            icon: 'warning',
+            confirmText: 'Sí, desactivar',
+            cancelText: 'Cancelar',
+            type: 'danger'
+        });
+
+        if (!confirmed) return;
+
         const prev = btn.textContent; btn.disabled = true; btn.textContent = 'Desactivando…';
         apiFetch(`/api/clients/${id}`, { method: 'DELETE', noRedirectOn401: true })
           .then(res => {
             if (res.status === 401) { alert('Sesión expirada. Inicia sesión nuevamente para continuar.'); return; }
             if (!res.ok) return res.text().then(t => alert(t || 'No se pudo desactivar el cliente'));
-            alert('Cliente desactivado');
+            alert('Cliente desactivado exitosamente');
             loadClients(getClientFiltersFromDOM());
           })
           .catch(() => alert('Error de red'))
@@ -308,13 +355,26 @@ function onClientsTableClick(e) {
         return;
     }
     if (btn.classList.contains('js-activate')) {
-        if (!confirm('¿Confirmás activar este cliente?')) return;
+        const client = clientsCache.find(c => String(c.id) === String(id));
+        const clientName = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() : 'este cliente';
+
+        const confirmed = await showConfirmation({
+            title: 'Activar cliente',
+            message: `¿Deseas reactivar la membresía de ${clientName}? Podrá volver a acceder al gimnasio.`,
+            icon: 'info',
+            confirmText: 'Sí, activar',
+            cancelText: 'Cancelar',
+            type: 'primary'
+        });
+
+        if (!confirmed) return;
+
         const prev = btn.textContent; btn.disabled = true; btn.textContent = 'Activando…';
         apiFetch(`/api/clients/${id}/activate`, { method: 'POST', noRedirectOn401: true })
           .then(res => {
             if (res.status === 401) { alert('Sesión expirada. Inicia sesión nuevamente para continuar.'); return; }
             if (!res.ok) return res.text().then(t => alert(t || 'No se pudo activar el cliente'));
-            alert('Cliente activado');
+            alert('Cliente activado exitosamente');
             loadClients(getClientFiltersFromDOM());
           })
           .catch(() => alert('Error de red'))
@@ -326,18 +386,30 @@ function onClientsTableClick(e) {
         return;
     }
     if (btn.classList.contains('js-resume')) {
-        if (!confirm('¿Confirmás reanudar la suscripción de este cliente?')) return;
+        const client = clientsCache.find(c => String(c.id) === String(id));
+        const clientName = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() : 'este cliente';
+
+        const confirmed = await showConfirmation({
+            title: 'Reanudar suscripción',
+            message: `¿Quieres reanudar la suscripción de ${clientName}? La pausa se cancelará y volverá a estar activo.`,
+            icon: 'info',
+            confirmText: 'Sí, reanudar',
+            cancelText: 'Cancelar',
+            type: 'primary'
+        });
+
+        if (!confirmed) return;
+
         const prev = btn.textContent; btn.disabled = true; btn.textContent = 'Reanudando…';
         apiFetch(`/api/clients/${id}/resume`, { method: 'POST', noRedirectOn401: true })
           .then(res => {
             if (res.status === 401) { alert('Sesión expirada. Inicia sesión nuevamente para continuar.'); return; }
             if (!res.ok) return res.text().then(t => alert(t || 'No se pudo reanudar la suscripción'));
-            alert('Suscripción reanudada');
+            alert('Suscripción reanudada exitosamente');
             loadClients(getClientFiltersFromDOM());
           })
           .catch(() => alert('Error de red'))
           .finally(() => { btn.disabled = false; btn.textContent = prev; });
-        return;
     }
 }
 
@@ -388,12 +460,71 @@ function showPauseForm(clientId) {
 // ============= Pagos =============
 async function loadPayments(filters = {}) {
     try {
-        console.debug('[UI] loadPayments filters', filters);
+        // Si viene un arreglo de clientIds, hacemos múltiples requests y mergeamos
+        if (Array.isArray(filters.clientIds) && filters.clientIds.length > 1) {
+            const { clientIds, from, to, state } = filters;
+            const queries = clientIds.map(id => {
+                const params = new URLSearchParams();
+                params.set('clientId', String(id));
+                if (from) params.set('from', from);
+                if (to) params.set('to', to);
+                if (state) params.set('state', state);
+                params.set('size', '50');
+                return apiFetch('/api/payments?' + params.toString());
+            });
+            const responses = await Promise.allSettled(queries);
+            const items = [];
+            for (const r of responses) {
+                if (r.status === 'fulfilled' && r.value.ok) {
+                    const data = await r.value.json();
+                    const list = Array.isArray(data) ? data : (Array.isArray(data.content) ? data.content : []);
+                    items.push(...list);
+                }
+            }
+            const tbody = document.querySelector('#payments-table tbody');
+            if (!tbody) return;
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6">Sin resultados.</td></tr>';
+                return;
+            }
+            const sortedItems = items.slice().sort((a, b) => {
+                const ta = a && a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+                const tb = b && b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+                if (tb !== ta) return tb - ta;
+                const ida = Number(a && a.id) || 0;
+                const idb = Number(b && b.id) || 0;
+                return idb - ida;
+            });
+            tbody.innerHTML = sortedItems.map(payment => {
+                const amount = Number(payment.amount || 0).toFixed(2);
+                const dateStr = payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '-';
+                const timeCell = formatPaymentTimeCell(payment);
+                const client = Array.isArray(clientsCache) ? clientsCache.find(c => String(c.id) === String(payment.clientId)) : null;
+                const clientText = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() || (client.email || '—') : '—';
+                const actions = !payment.voided
+                    ? `<button class=\"payments-table-action-btn\" onclick=\"voidPayment(${payment.id})\">Anular</button>`
+                    : '<span class="status-badge voided">Anulado</span>';
+                return `
+                <tr>
+                    <td class="name-cell">${clientText}</td>
+                    <td style="text-align:right">$${amount}</td>
+                    <td>${payment.method || '-'}</td>
+                    <td class="date-cell">${dateStr}</td>
+                    <td class="duration-cell">${timeCell}</td>
+                    <td class="actions-cell">${actions}</td>
+                </tr>`;
+            }).join('');
+            return;
+        }
+        // flujo original (un solo cliente o sin clientId)
         const params = new URLSearchParams(filters);
-        // forzar tamaño razonable para la tabla
         if (!params.has('size')) params.set('size', '50');
         const response = await apiFetch('/api/payments?' + params.toString());
-        if (!response.ok) throw new Error('No se pudo cargar pagos');
+        if (!response.ok) {
+            const tbody = document.querySelector('#payments-table tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6">No se pudo cargar pagos.</td></tr>';
+            return;
+        }
         const pageOrList = await response.json();
         const tbody = document.querySelector('#payments-table tbody');
         if (!tbody) return;
@@ -401,34 +532,47 @@ async function loadPayments(filters = {}) {
             ? pageOrList
             : Array.isArray(pageOrList.content) ? pageOrList.content : [];
         if (items.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7">Sin resultados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6">Sin resultados.</td></tr>';
             return;
         }
-        tbody.innerHTML = items.map(payment => `
+        // Ordenar: primero por fecha de pago descendente, y si falta/empata, por id descendente
+        const sortedItems = items.slice().sort((a, b) => {
+            const ta = a && a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+            const tb = b && b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+            if (tb !== ta) return tb - ta; // más reciente primero
+            const ida = Number(a && a.id) || 0;
+            const idb = Number(b && b.id) || 0;
+            return idb - ida; // id más alto primero
+        });
+        tbody.innerHTML = sortedItems.map(payment => {
+            const amount = Number(payment.amount || 0).toFixed(2);
+            const dateStr = payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '-';
+            const timeCell = formatPaymentTimeCell(payment);
+            const client = Array.isArray(clientsCache) ? clientsCache.find(c => String(c.id) === String(payment.clientId)) : null;
+            const clientText = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() || (client.email || '—') : '—';
+            const actions = !payment.voided
+                ? `<button class=\"payments-table-action-btn\" onclick=\"voidPayment(${payment.id})\">Anular</button>`
+                : '<span class="status-badge voided">Anulado</span>';
+            return `
             <tr>
-                <td>${payment.id}</td>
-                <td>${payment.clientId}</td>
-                <td>$${Number(payment.amount || 0).toFixed(2)}</td>
+                <td class="name-cell">${clientText}</td>
+                <td style="text-align:right">$${amount}</td>
                 <td>${payment.method || '-'}</td>
-                <td>${payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '-'}</td>
-                <td>${payment.state || '-'}</td>
-                <td>
-                    ${!payment.voided ? 
-                        `<button onclick="voidPayment(${payment.id})" class="btn btn-danger">Anular</button>` :
-                        '<span>Anulado</span>'
-                    }
-                </td>
-            </tr>`).join('');
+                <td class="date-cell">${dateStr}</td>
+                <td class="duration-cell">${timeCell}</td>
+                <td class="actions-cell">${actions}</td>
+            </tr>`;
+        }).join('');
     } catch (error) {
         console.error('Error al cargar pagos:', error);
     }
 }
 
 async function populatePaymentClientFilter() {
-    const sel = document.getElementById('payment-client');
-    if (!sel) return;
-    // preservar selección previa
-    const prev = sel.value;
+    const datalist = document.getElementById('payment-client-options');
+    const input = document.getElementById('payment-client-q');
+    if (!datalist) return;
+    const prev = input ? input.value : '';
     try {
         if (!Array.isArray(clientsCache) || clientsCache.length === 0) {
             const res = await apiFetch('/api/clients');
@@ -437,16 +581,14 @@ async function populatePaymentClientFilter() {
                 clientsCache = Array.isArray(list) ? list : [];
             }
         }
-        const options = ['<option value="">Todos los clientes</option>']
-            .concat(
-                clientsCache.map(c => `<option value="${c.id}">(${c.id}) ${c.firstName || ''} ${c.lastName || ''} (${c.email || ''})</option>`)
-            ).join('');
-        sel.innerHTML = options;
-        // restaurar selección si existía
-        if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
-    } catch (e) {
-        // en error, dejar solo opción por defecto
-        sel.innerHTML = '<option value="">Todos los clientes</option>';
+        datalist.innerHTML = (clientsCache || []).map(c => {
+            const name = `${c.firstName || ''} ${c.lastName || ''}`.trim();
+            const email = c.email || '';
+            return `<option value="${c.id} - ${name} (${email})"></option>`;
+        }).join('');
+        if (input && prev) input.value = prev;
+    } catch (_) {
+        if (datalist) datalist.innerHTML = '';
     }
 }
 
@@ -454,23 +596,33 @@ function filterPayments() {
     const from = document.getElementById('date-from')?.value;
     const to = document.getElementById('date-to')?.value;
     const state = document.getElementById('payment-state')?.value;
-    const clientId = document.getElementById('payment-client')?.value;
+    const q = document.getElementById('payment-client-q')?.value?.trim();
+    const ids = resolveClientIdsFromQuery(q);
+    // Si hay texto y no hay coincidencias, mostrar tabla vacía
+    if (q && ids.length === 0) {
+        const tbody = document.querySelector('#payments-table tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6">Sin resultados.</td></tr>';
+        return;
+    }
     const filters = {};
-    if (clientId) filters.clientId = clientId;
+    if (ids.length > 1) {
+        filters.clientIds = ids;
+    } else if (ids.length === 1) {
+        filters.clientId = ids[0];
+    }
     if (from) filters.from = from;
     if (to) filters.to = to;
     if (state) filters.state = state;
-    console.debug('[UI] filterPayments ->', filters);
     loadPayments(filters);
 }
 
 // Añadido: limpiar filtros de pagos
 function clearPaymentFilters() {
-    const sel = document.getElementById('payment-client');
+    const input = document.getElementById('payment-client-q');
     const from = document.getElementById('date-from');
     const to = document.getElementById('date-to');
     const state = document.getElementById('payment-state');
-    if (sel) sel.value = '';
+    if (input) input.value = '';
     if (from) from.value = '';
     if (to) to.value = '';
     if (state) state.value = '';
@@ -481,38 +633,80 @@ function clearPaymentFilters() {
 function viewClientPayments(clientId) {
     // Evita carga automática para que no se pisen filtros
     showSection('payments', true);
-    const sel = document.getElementById('payment-client');
-    if (sel) sel.value = String(clientId);
-    // Garantiza que el selector esté poblado (si aún no lo está)
+    const input = document.getElementById('payment-client-q');
+    // Garantiza que el datalist esté poblado (si aún no lo está)
     populatePaymentClientFilter().then(() => {
-        const s = document.getElementById('payment-client');
-        if (s) s.value = String(clientId);
+        if (input) {
+            const c = (clientsCache || []).find(x => Number(x.id) === Number(clientId));
+            const name = c ? `${c.firstName || ''} ${c.lastName || ''}`.trim() : '';
+            const email = c?.email || '';
+            input.value = c ? `${c.id} - ${name} (${email})` : String(clientId);
+        }
     });
     // Cargar pagos del cliente
     loadPayments({ clientId });
 }
 
-function voidPayment(id) { /* TODO */ }
+function voidPayment(id) {
+    (async () => {
+        const confirmed = await showConfirmation({
+            title: 'Anular pago',
+            message: '¿Deseas anular este pago? Esta acción no puede deshacerse.',
+            icon: 'warning',
+            confirmText: 'Anular',
+            cancelText: 'Cancelar',
+            type: 'danger'
+        });
+        if (!confirmed) return;
+        const reason = prompt('Motivo de anulación (opcional):', 'Anulado desde panel') || 'Anulado desde panel';
+        try {
+            const res = await apiFetch(`/api/payments/${id}/void?reason=${encodeURIComponent(reason)}`, { method: 'POST', noRedirectOn401: true });
+            const text = await res.text();
+            if (!res.ok) {
+                alert(text || 'No se pudo anular el pago');
+                return;
+            }
+            alert('Pago anulado');
+            // Recargar con filtros actuales
+            const from = document.getElementById('date-from')?.value;
+            const to = document.getElementById('date-to')?.value;
+            const state = document.getElementById('payment-state')?.value;
+            const q = document.getElementById('payment-client-q')?.value?.trim();
+            const ids = resolveClientIdsFromQuery(q);
+            const filters = {};
+            if (ids.length > 1) filters.clientIds = ids;
+            else if (ids.length === 1) filters.clientId = ids[0];
+            if (from) filters.from = from;
+            if (to) filters.to = to;
+            if (state) filters.state = state;
+            await loadPayments(filters);
+        } catch (_) {
+            alert('Error de red');
+        }
+    })();
+}
 
 async function showPaymentForm() {
     const modal = document.getElementById('payment-modal');
     if (!modal) return;
-    const tpl = await fetch('/admin/templates/payment-form.html').then(r => r.text());
-    modal.innerHTML = tpl;
+    modal.innerHTML = await fetch('/admin/templates/payment-form.html').then(r => r.text());
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     modal.onclick = (e) => { if (e.target === modal) closeModal('payment-modal'); };
 
     const form = modal.querySelector('#payment-form');
     const errEl = modal.querySelector('#payment-form-error');
-    const clientSelect = form.querySelector('#clientId');
+    // nuevos elementos para búsqueda rápida de cliente
+    const clientSearch = form.querySelector('#clientSearch');
+    const clientIdHidden = form.querySelector('#clientId');
+    const clientOptions = form.querySelector('#clientOptions');
     const periodMonth = form.querySelector('#periodMonth');
     const periodYear = form.querySelector('#periodYear');
     const validityRadios = form.querySelectorAll('input[name="validityType"]');
     const durationGroup = form.querySelector('#durationDaysGroup');
     const durationInput = form.querySelector('#durationDays');
 
-    // Poblar clientes activos
+    // Poblar clientes activos en el datalist
     try {
         if (!Array.isArray(clientsCache) || clientsCache.length === 0) {
             const res = await apiFetch('/api/clients');
@@ -520,8 +714,40 @@ async function showPaymentForm() {
             clientsCache = Array.isArray(list) ? list : [];
         }
         const actives = clientsCache.filter(c => c.active);
-        clientSelect.innerHTML = actives.map(c => `<option value="${c.id}">${c.firstName || ''} ${c.lastName || ''} (${c.email || ''})</option>`).join('');
+        if (clientOptions) {
+            clientOptions.innerHTML = actives.map(c => {
+                const name = `${c.firstName || ''} ${c.lastName || ''}`.trim();
+                const email = c.email || '';
+                return `<option value="${c.id} - ${name} (${email})"></option>`;
+            }).join('');
+        }
     } catch { /* ignore */ }
+
+    // Sincronizar input con hidden: permite pegar ID o elegir de lista
+    function syncClientIdFromSearch() {
+        const v = (clientSearch?.value || '').trim();
+        if (!v) { clientIdHidden.value = ''; return; }
+        // Si comienza con números, tomar ese ID
+        const m = v.match(/^\d+/);
+        if (m) {
+            const id = Number(m[0]);
+            const exists = Array.isArray(clientsCache) && clientsCache.some(c => Number(c.id) === id);
+            clientIdHidden.value = exists ? String(id) : '';
+            return;
+        }
+        // Buscar por coincidencia de texto (nombre/email)
+        const found = (clientsCache || []).find(c => {
+            const name = `${c.firstName || ''} ${c.lastName || ''}`.trim().toLowerCase();
+            const email = (c.email || '').toLowerCase();
+            return name.includes(v.toLowerCase()) || email.includes(v.toLowerCase());
+        });
+        clientIdHidden.value = found ? String(found.id) : '';
+    }
+    if (clientSearch) {
+        clientSearch.addEventListener('input', syncClientIdFromSearch);
+        clientSearch.addEventListener('change', syncClientIdFromSearch);
+        clientSearch.addEventListener('blur', syncClientIdFromSearch);
+    }
 
     // Defaults de período
     const today = new Date();
@@ -538,7 +764,13 @@ async function showPaymentForm() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (errEl) errEl.textContent = '';
-        const clientId = Number(clientSelect.value);
+        // tomar id oculto mapeado por la búsqueda
+        const clientId = Number(clientIdHidden.value);
+        if (!clientId || Number.isNaN(clientId)) {
+            if (errEl) errEl.textContent = 'Selecciona un cliente válido (escribe y elige una opción, o pega el ID).';
+            clientSearch?.focus();
+            return;
+        }
         const amount = Number(form.querySelector('#amount').value);
         const method = form.querySelector('#method').value;
         const paymentDate = form.querySelector('#paymentDate').value || null;
@@ -566,7 +798,19 @@ async function showPaymentForm() {
                 return;
             }
             closeModal('payment-modal');
-            loadPayments();
+            // Recargar respetando filtros actuales para que el nuevo pago aparezca primero con el orden aplicado
+            const from = document.getElementById('date-from')?.value;
+            const to = document.getElementById('date-to')?.value;
+            const state = document.getElementById('payment-state')?.value;
+            const q = document.getElementById('payment-client-q')?.value?.trim();
+            const ids = resolveClientIdsFromQuery(q);
+            const filters = {};
+            if (ids.length > 1) filters.clientIds = ids;
+            else if (ids.length === 1) filters.clientId = ids[0];
+            if (from) filters.from = from;
+            if (to) filters.to = to;
+            if (state) filters.state = state;
+            await loadPayments(filters);
             alert('Pago registrado');
         } catch {
             if (errEl) errEl.textContent = 'Error de red';
@@ -611,6 +855,50 @@ async function getCashflowReport() {
     }
 }
 
+async function loadReportSummary() {
+    // elementos destino
+    const expiredEl = document.getElementById('report-expired-count');
+    const expiringEl = document.getElementById('report-expiring-count');
+    const incomeEl = document.getElementById('report-month-income');
+    if (expiredEl) expiredEl.textContent = '--';
+    if (expiringEl) expiringEl.textContent = '--';
+    if (incomeEl) incomeEl.textContent = '--';
+
+    // helpers de fechas (mes actual)
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const ymd = (d) => formatDateForInput(d);
+
+    try {
+        // vencidos (conteo)
+        const overdueRes = await apiFetch('/api/reports/overdue');
+        if (overdueRes && overdueRes.ok && expiredEl) {
+            const list = await overdueRes.json();
+            expiredEl.textContent = Array.isArray(list) ? String(list.length) : '0';
+        }
+    } catch (_) { /* noop */ }
+
+    try {
+        // por vencer (7 días) - ya existe endpoint
+        const expiringRes = await apiFetch('/api/reports/expiring');
+        if (expiringRes && expiringRes.ok && expiringEl) {
+            const list = await expiringRes.json();
+            expiringEl.textContent = Array.isArray(list) ? String(list.length) : '0';
+        }
+    } catch (_) { /* noop */ }
+
+    try {
+        // ingresos del mes (flujo de caja)
+        const cfRes = await apiFetch(`/api/reports/cashflow?from=${ymd(first)}&to=${ymd(last)}`);
+        if (cfRes && cfRes.ok && incomeEl) {
+            const total = await cfRes.json();
+            const num = Number(total || 0);
+            incomeEl.textContent = `$${num.toFixed(2)}`;
+        }
+    } catch (_) { /* noop */ }
+}
+
 function showReportResults(title, data) {
     const resultsDiv = document.getElementById('report-results');
     if (!resultsDiv) return;
@@ -639,10 +927,208 @@ function showReportResults(title, data) {
     `;
 }
 
+// ============= Modal de Confirmación =============
+function showConfirmation({ title, message, icon = 'warning', confirmText = 'Confirmar', cancelText = 'Cancelar', type = 'danger' }) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirmation-modal');
+        const titleEl = document.getElementById('confirmation-title');
+        const messageEl = document.getElementById('confirmation-message');
+        const iconEl = document.getElementById('confirmation-icon');
+        const confirmBtn = document.getElementById('confirmation-confirm');
+        const cancelBtn = document.getElementById('confirmation-cancel');
+
+        // Configurar contenido
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        confirmBtn.textContent = confirmText;
+        cancelBtn.textContent = cancelText;
+
+        // Configurar icono y tipo
+        iconEl.className = `confirmation-icon ${icon}`;
+        confirmBtn.className = type === 'danger' ? 'btn-confirm' : 'btn-confirm primary';
+
+        if (icon === 'warning') {
+            iconEl.textContent = '⚠️';
+        } else if (icon === 'info') {
+            iconEl.textContent = 'ℹ️';
+        }
+
+        // Mostrar modal
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+
+        // Handlers
+        const handleConfirm = () => {
+            hideConfirmation();
+            resolve(true);
+        };
+
+        const handleCancel = () => {
+            hideConfirmation();
+            resolve(false);
+        };
+
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+                handleCancel();
+            } else if (e.key === 'Enter') {
+                handleConfirm();
+            }
+        };
+
+        // Limpiar listeners anteriores
+        confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+        cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+
+        // Añadir nuevos listeners
+        const newConfirmBtn = document.getElementById('confirmation-confirm');
+        const newCancelBtn = document.getElementById('confirmation-cancel');
+
+        newConfirmBtn.addEventListener('click', handleConfirm);
+        newCancelBtn.addEventListener('click', handleCancel);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) handleCancel();
+        });
+        document.addEventListener('keydown', handleKeydown);
+
+        // Limpiar al cerrar
+        modal._cleanup = () => {
+            document.removeEventListener('keydown', handleKeydown);
+        };
+    });
+}
+
+function hideConfirmation() {
+    const modal = document.getElementById('confirmation-modal');
+    modal.classList.remove('show');
+    document.body.style.overflow = '';
+
+    // Ejecutar cleanup si existe
+    if (modal._cleanup) {
+        modal._cleanup();
+        modal._cleanup = null;
+    }
+}
+
+// ============= Dashboard =============
+async function loadDashboardStats() {
+    try {
+        const response = await apiFetch('/api/dashboard/stats');
+        const activeEl = document.getElementById('active-clients-count');
+        const pendingEl = document.getElementById('pending-payments-count');
+        if (response && response.ok) {
+            const { activeClients, expiredPayments } = await response.json();
+            if (activeEl) activeEl.textContent = String(activeClients ?? '--');
+            if (pendingEl) pendingEl.textContent = String(expiredPayments ?? '--');
+        } else {
+            if (activeEl) activeEl.textContent = '--';
+            if (pendingEl) pendingEl.textContent = '--';
+        }
+    } catch (_) {
+        const activeEl = document.getElementById('active-clients-count');
+        const pendingEl = document.getElementById('pending-payments-count');
+        if (activeEl) activeEl.textContent = '--';
+        if (pendingEl) pendingEl.textContent = '--';
+    }
+}
+
+async function loadRecentActivities() {
+    try {
+        const response = await apiFetch('/api/dashboard/activities?limit=6');
+        const list = document.getElementById('recent-activity-list');
+        if (!list) return;
+        if (response && response.ok) {
+            const activities = await response.json();
+            if (!activities || activities.length === 0) {
+                list.innerHTML = `
+                    <div class="activity-item">
+                        <div class="activity-indicator new-client"></div>
+                        <div class="activity-content">
+                            <span class="activity-title">No hay actividades recientes</span>
+                            <span class="activity-time">Últimos 7 días</span>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            list.innerHTML = activities.map(a => {
+                const cls = getActivityClass(a.type);
+                const timeAgo = formatTimeAgo(a.timestamp);
+                return `
+                    <div class="activity-item">
+                        <div class="activity-indicator ${cls}"></div>
+                        <div class="activity-content">
+                            <span class="activity-title">${a.title}</span>
+                            <span class="activity-time">${timeAgo}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            list.innerHTML = `
+                <div class="activity-item">
+                    <div class="activity-indicator new-client"></div>
+                    <div class="activity-content">
+                        <span class="activity-title">Error al cargar actividades</span>
+                        <span class="activity-time">Intenta recargar la página</span>
+                    </div>
+                </div>
+            `;
+        }
+    } catch (_) {
+        const list = document.getElementById('recent-activity-list');
+        if (list) {
+            list.innerHTML = `
+                <div class="activity-item">
+                    <div class="activity-indicator new-client"></div>
+                    <div class="activity-content">
+                        <span class="activity-title">Error al cargar actividades</span>
+                        <span class="activity-time">Intenta recargar la página</span>
+                    </div>
+                </div>
+            `;
+        }
+    }
+}
+
+function getActivityClass(type) {
+    switch (type) {
+        case 'new-client': return 'new-client';
+        case 'payment': return 'payment';
+        case 'expiring': return 'expiring';
+        default: return 'new-client';
+    }
+}
+
+function formatTimeAgo(timestamp) {
+    const now = new Date();
+    const activityTime = new Date(timestamp);
+    const diffInHours = Math.floor((now - activityTime) / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInHours / 24);
+
+    if (diffInHours < 1) {
+        return 'Hace menos de 1 hora';
+    } else if (diffInHours < 24) {
+        return `Hace ${diffInHours} hora${diffInHours > 1 ? 's' : ''}`;
+    } else if (diffInDays === 1) {
+        return 'Hace 1 día';
+    } else if (diffInDays < 7) {
+        return `Hace ${diffInDays} días`;
+    } else {
+        return activityTime.toLocaleDateString('es-ES', {
+            day: 'numeric',
+            month: 'short'
+        });
+    }
+}
+
 // ============= Inicio =============
 document.addEventListener('DOMContentLoaded', () => {
     // Si no hay token, la API devolverá 401 y apiFetch redirigirá a /index.html
     loadClients();
+    loadDashboardStats(); // Cargar estadísticas del dashboard
+    loadRecentActivities(); // Cargar actividades recientes del dashboard
+
     const stateSel = document.getElementById('payment-state');
     if (stateSel) stateSel.addEventListener('change', filterPayments);
     const clientsTable = document.getElementById('clients-table');
@@ -657,6 +1143,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Binding explícito del botón de limpiar pagos (fallback a inline)
     const clearBtn = document.getElementById('btn-clear-payments');
     if (clearBtn) clearBtn.addEventListener('click', (e) => { e.preventDefault(); clearPaymentFilters(); });
+
+    // Permite pulsar Enter en el filtro de cliente para aplicar
+    const clientQ = document.getElementById('payment-client-q');
+    if (clientQ) clientQ.addEventListener('keyup', (e) => { if (e.key === 'Enter') filterPayments(); });
 });
 
 // Delegación global como respaldo para 'Ver pagos' (por si falla el listener de la tabla)
@@ -665,7 +1155,6 @@ document.addEventListener('click', (e) => {
     if (btn) {
         e.preventDefault();
         const id = Number(btn.getAttribute('data-id'));
-        console.debug('[UI] global delegate: view payments', id);
         viewClientPayments(id);
     }
 });
@@ -677,6 +1166,7 @@ window.getExpiringReport = getExpiringReport;
 window.getOverdueReport = getOverdueReport;
 window.getCashflowReport = getCashflowReport;
 window.filterPayments = filterPayments;
+
 window.showClientForm = showClientForm;
 window.closeModal = closeModal;
 window.filterClients = filterClients;
@@ -684,3 +1174,24 @@ window.clearClientFilters = clearClientFilters;
 window.showPaymentForm = showPaymentForm;
 window.clearPaymentFilters = clearPaymentFilters;
 window.viewClientPayments = viewClientPayments;
+window.voidPayment = voidPayment;
+
+// exponer cargadores del dashboard para que navbar.js delegue correctamente
+window.loadDashboardStats = loadDashboardStats;
+window.loadRecentActivities = loadRecentActivities;
+window.loadReportSummary = loadReportSummary;
+
+// Helper: resuelve múltiples clientIds a partir de un texto (id directo, nombre o email)
+function resolveClientIdsFromQuery(q) {
+    if (!q) return [];
+    const m = q.match(/^\d+/);
+    if (m) return [Number(m[0])];
+    const needle = q.toLowerCase();
+    return (clientsCache || [])
+        .filter(c => {
+            const name = `${c.firstName || ''} ${c.lastName || ''}`.trim().toLowerCase();
+            const email = (c.email || '').toLowerCase();
+            return name.includes(needle) || email.includes(needle);
+        })
+        .map(c => Number(c.id));
+}

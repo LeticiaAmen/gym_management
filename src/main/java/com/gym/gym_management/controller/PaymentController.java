@@ -7,6 +7,8 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +20,19 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-
+/**
+ * Controlador REST para gestionar pagos de clientes.
+ * <p>
+ * Expone endpoints administrativos (rol ADMIN) para:
+ * <ul>
+ *     <li>Registrar nuevos pagos aplicando reglas del dominio.</li>
+ *     <li>Listar pagos con filtros (cliente, fechas, estado) y paginación.</li>
+ *     <li>Anular pagos (void) manteniendo trazabilidad.</li>
+ *     <li>Consultar un pago puntual.</li>
+ *     <li>Consultar el estado dinámico de un período (sin crear registros).</li>
+ * </ul>
+ * Siempre trabaja con DTOs para desacoplar la capa web de las entidades JPA.
+ */
 @RestController
 @RequestMapping("/api/payments")
 @PreAuthorize("hasRole('ADMIN')")
@@ -28,10 +42,11 @@ public class PaymentController {
     private PaymentService paymentService;
 
     /**
-     * Registra un nuevo pago.
-     * Acceso: solo usuarios con rol ADMIN.
-     * @param request datos del pago a registrar.
-     * @return PaymentDTO con los detalles del pago registrado.
+     * Registra un nuevo pago asociado a un cliente.
+     * Maneja errores de validación funcional devolviendo 400, conflictos de negocio con 409
+     * y cliente inexistente con 404.
+     * @param request payload con los datos del pago (cliente, monto, período, método).
+     * @return 201 + PaymentDTO creado o error acorde.
      */
     @PostMapping
     public ResponseEntity<?> registerPayment(@Valid @RequestBody PaymentDTO request) {
@@ -51,14 +66,15 @@ public class PaymentController {
     }
 
     /**
-     * Obtiene la lista de pagos filtrados por cliente, fechas y estado.
-     * Acceso: solo usuarios con rol ADMIN.
-     * @param clientId id del cliente (opcional).
-     * @param from fecha de inicio para el filtro (opcional).
-     * @param to fecha de fin para el filtro (opcional).
-     * @param state estado del pago (opcional).
-     * @param pageable parámetros de paginación.
-     * @return lista paginada de PaymentDTO que cumplen con los criterios de filtro.
+     * Lista pagos aplicando filtros opcionales.
+     * Valida coherencia de rango de fechas.
+     * Por defecto se ordena por fecha de pago descendente (más recientes primero).
+     * @param clientId id de cliente (opcional).
+     * @param from fecha mínima de paymentDate.
+     * @param to fecha máxima de paymentDate.
+     * @param state estado textual (PENDING | UP_TO_DATE | EXPIRED | VOIDED).
+     * @param pageable parámetros de paginación (page, size, sort).
+     * @return página de PaymentDTO.
      */
     @GetMapping
     public ResponseEntity<?> getPayments(
@@ -66,35 +82,26 @@ public class PaymentController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) String state,
-            Pageable pageable
+            @PageableDefault(sort = "paymentDate", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         if (from != null && to != null && from.isAfter(to)) {
             return ResponseEntity.badRequest().body("El parámetro 'from' no puede ser posterior a 'to'");
         }
-        PaymentState parsedState = null;
-        if (state != null && !state.isBlank()) {
-            String s = state.trim().toUpperCase(Locale.ROOT);
-            if ("OVERDUE".equals(s)) {
-                // Contrato usa OVERDUE; nuestro enum usa EXPIRED
-                parsedState = PaymentState.EXPIRED;
-            } else {
-                try {
-                    parsedState = PaymentState.valueOf(s);
-                } catch (IllegalArgumentException ex) {
-                    return ResponseEntity.badRequest().body("Estado inválido. Use UP_TO_DATE | OVERDUE | VOIDED");
-                }
-            }
+        PaymentState parsedState;
+        try {
+            parsedState = parseState(state); // null si no viene
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
         }
         Page<PaymentDTO> page = paymentService.findPayments(clientId, from, to, parsedState, pageable);
         return ResponseEntity.ok(page);
     }
 
     /**
-     * Anula un pago existente.
-     * Acceso: solo usuarios con rol ADMIN.
-     * @param id identificador del pago a anular.
-     * @param reason motivo de la anulación.
-     * @return respuesta con el detalle del pago anulado.
+     * Anula un pago existente marcándolo como VOIDED.
+     * @param id identificador del pago.
+     * @param reason motivo de anulación para auditoría.
+     * @return PaymentDTO actualizado o error 404 / 409.
      */
     @PostMapping("/{id}/void")
     public ResponseEntity<?> voidPayment(
@@ -111,10 +118,9 @@ public class PaymentController {
     }
 
     /**
-     * Opcional: obtiene un pago por su identificador.
-     * Acceso: solo usuarios con rol ADMIN.
-     * @param id identificador del pago.
-     * @return ResponseEntity con el pago si existe, o 404 si no se encuentra.
+     * Recupera un pago por id.
+     * @param id identificador.
+     * @return 200 con PaymentDTO o 404 si no existe.
      */
     @GetMapping("/{id}")
     public ResponseEntity<PaymentDTO> findById(@PathVariable Long id){
@@ -123,9 +129,12 @@ public class PaymentController {
     }
 
     /**
-     * Estado de un período (mes/año) calculado on-the-fly.
-     * UP_TO_DATE si existe Payment válido para (client,month,year),
-     * si no existe: PENDING si hoy <= dueDate+3, EXPIRED si hoy > dueDate+3.
+     * Calcula el estado de un período sin necesidad de crear un pago.
+     * Usa la lógica del servicio (dueDate + 3 días de gracia) para distinguir PENDING vs EXPIRED.
+     * @param clientId id del cliente.
+     * @param month mes (1-12).
+     * @param year año.
+     * @return objeto con state, dueDate y graceEnd.
      */
     @GetMapping("/state")
     public ResponseEntity<?> getPeriodState(
@@ -144,6 +153,23 @@ public class PaymentController {
             ));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());
+        }
+    }
+
+    /**
+     * Parser estricto de estado. Acepta sólo los valores reales del enum.
+     * Permite null/blank = sin filtro.
+     * @param raw texto recibido.
+     * @return PaymentState o null.
+     * @throws IllegalArgumentException si el valor no corresponde a un estado válido.
+     */
+    private PaymentState parseState(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String normalized = raw.trim().toUpperCase(Locale.ROOT);
+        try {
+            return PaymentState.valueOf(normalized);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Estado inválido. Use PENDING | UP_TO_DATE | EXPIRED | VOIDED");
         }
     }
 }
