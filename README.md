@@ -1,145 +1,85 @@
-# Gym Management – Backend (Spring Boot)
+# Gym Management
 
-Una guía rápida para clonar, configurar y ejecutar el proyecto en cualquier entorno sin exponer credenciales.
+Proyecto personal de aprendizaje para mi portafolio. Es una app simple para administrar socios y pagos de un gimnasio.
 
----
-
-## 🗂️ Índice
-
-1. [Requisitos](#requisitos)
-2. [Clonado del repositorio](#clonado-del-repositorio)
-3. [Configuración de credenciales](#configuración-de-credenciales)
-
-    * Variables de entorno
-    * `application-dev.properties` (local ignorado)
-4. [Ejecución](#ejecución)
-
-    * Desde IntelliJ / IDE
-    * Desde consola (Maven Wrapper)
-5. [Scripts útiles de Maven](#scripts-útiles-de-maven)
-6. [Deploy & CI/CD](#deploy--cicd)
-7. [Resolución de problemas comunes](#resolución-de-problemas-comunes)
+- Diseñé la base de datos y el modelo de backend con Spring Boot.
+- Para la parte visual (HTML/CSS/JS) me apoyo en GitHub Copilot para acelerar el front.
 
 ---
 
-## Requisitos
+## ¿Qué hace?
 
-| Herramienta    | Versión mínima                    | Notas                                        |
-| -------------- | --------------------------------- | -------------------------------------------- |
-| **Java**       | 17                                | Asegúrate de que `java -version` lo devuelva |
-| **Maven**      | **💡 Opcional** (usamos `./mvnw`) | El wrapper descarga la versión correcta      |
-| **PostgreSQL** | 13+                               | Corriendo localmente o URL remota            |
-| **Git**        | Cualquiera                        | Para clonar el repo                          |
+- Clientes: alta/edición/activación y pausa de suscripciones.
+- Pagos: registrar, listar, filtrar y anular.
+  - La tabla de pagos muestra una columna "Tiempo" con: "1 mes" o "N días" + el rango de vigencia (fecha de pago → fecha de expiración).
+- Reportes: membresías vencidas, por vencer (7 días) e ingresos del mes.
+- Dashboard: tarjetas con métricas y actividad reciente.
 
-> **TIP:** En Windows **PowerShell** agrega *Git Bash* o *WSL* si prefieres comandos *nix*.
+Semilla de datos incluida (data.sql): crea 30 socios con pagos variados; al menos 10 vencidos para probar escenarios reales.
 
 ---
 
-## Clonado del repositorio
+## Stack
+
+- Java 17 + Spring Boot
+- Spring Web, Spring Security (JWT), Spring Data JPA
+- PostgreSQL
+- Frontend estático simple (HTML/CSS/JS) en `/src/main/resources/static`
+
+---
+
+## Correrlo en local (rápido)
+
+1) Variables de entorno mínimas (puedes exportarlas en tu terminal):
+
+- `SPRING_DATASOURCE_URL` (ej: `jdbc:postgresql://localhost:5432/gym_management`)
+- `SPRING_DATASOURCE_USERNAME` (ej: `postgres`)
+- `SPRING_DATASOURCE_PASSWORD` (ej: `postgres`)
+- `JWT_SECRET` (32 bytes en Base64; para pruebas puedes usar cualquier cadena Base64)
+
+2) Arrancar la app con Maven Wrapper:
 
 ```bash
-git clone https://github.com/<tu-org>/gym_management.git
-cd gym_management/gymManagement
+./mvnw spring-boot:run
 ```
 
-> El sub‑módulo `gymManagement` contiene el backend Spring Boot.
+La app crea el esquema y carga la semilla automáticamente (modo demo). Si usas Windows, puedes correr `mvnw.cmd spring-boot:run`.
 
 ---
 
-## Configuración de credenciales
+## Login de demo
 
-### 1️⃣ Variables de entorno (todos los entornos)
+- Usuario: `admin@gym.com`
+- Clave: `password`
 
-| Variable                     | Descripción                             |
-| ---------------------------- | --------------------------------------- |
-| `SPRING_DATASOURCE_URL`      | URL JDBC completa                       |
-| `SPRING_DATASOURCE_USERNAME` | Usuario de la base                      |
-| `SPRING_DATASOURCE_PASSWORD` | Contraseña de la base                   |
-| `JWT_SECRET`                 | Clave Base64 (32 bytes) para firmar JWT |
-
-#### Ejemplo – Linux / macOS
-
-```bash
-export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/gym_management
-export SPRING_DATASOURCE_USERNAME=postgres
-export SPRING_DATASOURCE_PASSWORD=postgres
-export JWT_SECRET=$(openssl rand -base64 32)
-```
-
-#### Ejemplo – Windows PowerShell
-
-```powershell
-$Env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/gym_management"
-$Env:SPRING_DATASOURCE_USERNAME = "postgres"
-$Env:SPRING_DATASOURCE_PASSWORD = "postgres"
-$Env:JWT_SECRET = "<cadena base64>"
-```
-
-### 2️⃣ Archivo local ignorado `application-dev.properties`
-
-**Solo para desarrollo local**. No se sube al repo; está listado en `.gitignore`.
-
-Ruta: `src/main/resources/application-dev.properties`
-
-```properties
-# Base de datos local
-audioMT spring.datasource.url=jdbc:postgresql://localhost:5432/gym_management
-spring.datasource.username=postgres
-spring.datasource.password=postgres
-
-# JWT (32 bytes en Base64)
-jwt.secret=(32 bytes en Base64)
-```
-
-> Spring carga este archivo automáticamente gracias a la línea:
-> `spring.config.import=optional:classpath:application-dev.properties`
-> presente en `application.properties`.
+(Se crea desde `data.sql` sólo para desarrollo.)
 
 ---
 
-## Ejecución
+## Rutas útiles
 
-### Desde IntelliJ / VS Code
-
-1. Cargar las variables de entorno en la **Run Configuration** o usar `application-dev.properties`.
-2. Ejecutar la configuración **Spring Boot** que el IDE genera.
-
-### Desde consola
-
-```bash
-# Ejecuta la app con Maven Wrapper
-dos2unix ./mvnw  # solo primera vez si estás en Windows + WSL
-a./mvnw spring-boot:run
-```
+- Panel web: `http://localhost:8080/admin/dashboard.html`
+- Login: `http://localhost:8080/index.html`
 
 ---
 
-## Scripts útiles de Maven
+## Notas de diseño
 
-| Comando                  | Descripción                                |
-| ------------------------ | ------------------------------------------ |
-| `./mvnw clean test`      | Limpia y ejecuta tests                     |
-| `./mvnw package`         | Genera `gym_management-0.0.1-SNAPSHOT.jar` |
-| `java -jar target/*.jar` | Corre el jar empacado                      |
-
----
-
-## Deploy & CI/CD
-
-1. Definir **JWT\_SECRET** y credenciales de base en los *Secrets* del proveedor (GitHub Actions, Railway, Heroku…).
-2. Compilar: `./mvnw package -DskipTests`.
-3. Desplegar el jar o usar imagen Docker (próximamente en `/docker`).
+- Modelo principal: `Client` y `Payment`.
+  - `Payment` tiene `paymentDate`, `expirationDate`, `state`, `voided` y `durationDays` (opcional) para pagos por días.
+  - Si `durationDays` no viene, el sistema asume 1 mes de vigencia.
+- API expone DTOs (no devuelve entidades JPA directamente).
+- Seguridad con JWT (rol ADMIN para panel).
 
 ---
 
-## Resolución de problemas comunes
+## Roadmap (cosas para mejorar pronto)
 
-| Error                                        | Causa probable                      | Fix rápido                                                           |
-| -------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------- |
-| `Could not resolve placeholder 'JWT_SECRET'` | No se definió la variable           | Exportar `JWT_SECRET` o rellenar `application-dev.properties`        |
-| `MalformedInputException` al copiar recursos | Maven lee archivos en CP‑1252       | Ya solucionado en `pom.xml` con UTF‑8 o cambia encoding              |
-| `org.postgresql.util.PSQLException`          | DB apagada o credenciales inválidas | Verificar que PostgreSQL esté corriendo y los valores sean correctos |
+- Mejorar la UI y hacerla responsive.
+- Integrar email (notificaciones de pago, bienvenida, etc).
+- Filtros avanzados y paginación del lado del servidor.
+- Tests de integración adicionales y dockerización para levantar todo con un comando.
 
 ---
 
-> Hecho con ❤️ por Leticia Amen
+Hecho con ganas de aprender y construir mi portafolio.

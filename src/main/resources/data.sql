@@ -1,6 +1,6 @@
 -- Crear usuario administrador inicial (password: admin123)
 INSERT INTO users (email, password, role) VALUES
-('admin@scbox.com', '$2a$10$X.Rio15RFNmalRN9/XKmKOIGiH2FZD2bcyBroGKaItaUPZzOHwy6W', 'ADMIN');
+('admin@gym.com', '$2a$10$X.Rio15RFNmalRN9/XKmKOIGiH2FZD2bcyBroGKaItaUPZzOHwy6W', 'ADMIN');
 
 -- Reset secuencia de users
 ALTER SEQUENCE users_id_seq RESTART WITH 2;
