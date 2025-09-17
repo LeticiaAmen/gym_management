@@ -195,6 +195,10 @@ public class PaymentService {
         PaymentDTO dto = new PaymentDTO();
         dto.setId(payment.getId());
         dto.setClientId(payment.getClient().getId());
+        // Datos de cliente para el listado
+        dto.setClientFirstName(payment.getClient().getFirstName());
+        dto.setClientLastName(payment.getClient().getLastName());
+        dto.setClientEmail(payment.getClient().getEmail());
         dto.setAmount(payment.getAmount());
         dto.setMethod(payment.getMethod());
         dto.setMonth(payment.getMonth());

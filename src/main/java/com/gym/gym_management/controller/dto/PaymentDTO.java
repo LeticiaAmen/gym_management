@@ -15,6 +15,7 @@ import java.time.LocalDate;
  * Campos relevantes:
  * <ul>
  *   <li>clientId: identifica al cliente dueño del pago.</li>
+ *   <li>clientFirstName / clientLastName / clientEmail: datos básicos del cliente para mostrar en listados.</li>
  *   <li>amount: monto abonado (positivo).</li>
  *   <li>method: método de pago (enum legible en vez de valores numéricos).</li>
  *   <li>month/year: período al que se asocia el pago (permite idempotencia).</li>
@@ -30,6 +31,11 @@ public class PaymentDTO {
 
     @NotNull(message = "El ID del cliente es obligatorio")
     private Long clientId;
+
+    // Datos del cliente (opcionales para respuesta; ignorados en validación de entrada)
+    private String clientFirstName;
+    private String clientLastName;
+    private String clientEmail;
 
     @NotNull(message = "El monto es obligatorio")
     @Positive(message = "El monto debe ser positivo")
@@ -65,6 +71,15 @@ public class PaymentDTO {
 
     public Long getClientId() { return clientId; }
     public void setClientId(Long clientId) { this.clientId = clientId; }
+
+    public String getClientFirstName() { return clientFirstName; }
+    public void setClientFirstName(String clientFirstName) { this.clientFirstName = clientFirstName; }
+
+    public String getClientLastName() { return clientLastName; }
+    public void setClientLastName(String clientLastName) { this.clientLastName = clientLastName; }
+
+    public String getClientEmail() { return clientEmail; }
+    public void setClientEmail(String clientEmail) { this.clientEmail = clientEmail; }
 
     public Double getAmount() { return amount; }
     public void setAmount(Double amount) { this.amount = amount; }

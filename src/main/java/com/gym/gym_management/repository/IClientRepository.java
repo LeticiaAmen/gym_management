@@ -34,4 +34,18 @@ public interface IClientRepository extends JpaRepository<Client, Long> {
 
     // Método para obtener clientes registrados recientemente
     List<Client> findByStartDateAfterOrderByStartDateDesc(LocalDate date);
+
+    // Clientes activos cuyo último pago válido (no anulado) está vencido
+    @Query("SELECT c FROM Client c WHERE c.isActive = true AND EXISTS (" +
+           " SELECT 1 FROM Payment p WHERE p.client = c AND p.voided = false AND p.expirationDate = (" +
+           "   SELECT MAX(p2.expirationDate) FROM Payment p2 WHERE p2.client = c AND p2.voided = false" +
+           " ) AND p.expirationDate < :today" +
+           ")")
+    List<Client> findActiveClientsWithLastPaymentExpired(@Param("today") LocalDate today);
+
+    // Clientes activos SIN ningún pago válido vigente (no anulado) a partir de hoy
+    @Query("SELECT c FROM Client c WHERE c.isActive = true AND NOT EXISTS (" +
+           " SELECT 1 FROM Payment p WHERE p.client = c AND p.voided = false AND p.expirationDate >= :today" +
+           ")")
+    List<Client> findActiveClientsWithoutValidPayment(@Param("today") LocalDate today);
 }

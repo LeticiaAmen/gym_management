@@ -207,6 +207,12 @@
             <div class="stat-info">
               <h3>Membresías expiradas</h3>
               <span class="stat-number" id="report-expired-count">--</span>
+              <div style="margin-top: 0.75rem;">
+                <button class="btn-new-action" onclick="getOverdueReport()">
+                  <span class="btn-icon">🔍</span>
+                  Ver clientes
+                </button>
+              </div>
             </div>
             <div class="stat-icon">⛔</div>
           </div>
@@ -216,6 +222,12 @@
             <div class="stat-info">
               <h3>Por vencer (7 días)</h3>
               <span class="stat-number" id="report-expiring-count">--</span>
+              <div style="margin-top: 0.75rem;">
+                <button class="btn-new-action" onclick="getExpiringReport()">
+                  <span class="btn-icon">🔍</span>
+                  Ver clientes
+                </button>
+              </div>
             </div>
             <div class="stat-icon">⏳</div>
           </div>
@@ -230,6 +242,8 @@
           </div>
         </div>
       </div>
+
+      <div id="report-results" class="report-results"></div>
     </section>
   </div>
 
@@ -264,7 +278,7 @@
   </div>
 
   <script type="module" src="/js/api.js?v=20250916"></script>
-  <script type="module" src="/js/ui.js?v=20250916"></script>
+  <script type="module" src="/js/ui.js?v=20250917"></script>
   <script src="/js/navbar.js?v=20250915"></script>
 </body>
 </html>

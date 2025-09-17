@@ -54,17 +54,17 @@ class ReportServiceTest {
         Client b = new Client("Juan", "Pérez", "juan@example.com", null);
         b.setId(2L);
 
-        Payment pa = new Payment();
-        pa.setExpirationDate(LocalDate.now().minusDays(1));
-        pa.setVoided(false);
-        a.addPayment(pa);
+        Payment lastA = new Payment();
+        lastA.setExpirationDate(LocalDate.now().minusDays(1)); // vencido
+        lastA.setVoided(false);
 
-        Payment pb = new Payment();
-        pb.setExpirationDate(LocalDate.now().plusDays(1)); // no vencido
-        pb.setVoided(false);
-        b.addPayment(pb);
+        Payment lastB = new Payment();
+        lastB.setExpirationDate(LocalDate.now().plusDays(1)); // no vencido
+        lastB.setVoided(false);
 
         given(clientRepository.findAllActive()).willReturn(List.of(a, b));
+        given(paymentRepository.findTopByClient_IdAndVoidedFalseOrderByExpirationDateDesc(1L)).willReturn(lastA);
+        given(paymentRepository.findTopByClient_IdAndVoidedFalseOrderByExpirationDateDesc(2L)).willReturn(lastB);
 
         var result = reportService.getClientsWithOverduePayments();
         assertThat(result).extracting("id").containsExactly(1L);
@@ -81,4 +81,3 @@ class ReportServiceTest {
         assertThat(total).isEqualTo(150.5);
     }
 }
-

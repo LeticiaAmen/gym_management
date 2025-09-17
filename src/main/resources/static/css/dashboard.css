@@ -785,9 +785,9 @@ body.with-navbar {
 
 .report-results {
     margin-top: 30px;
-    padding: 20px;
-    background: #f8f9fa;
-    border-radius: 8px;
+    padding: 0; /* antes: 20px */
+    background: transparent; /* antes: #f8f9fa */
+    border-radius: 0; /* antes: 8px */
 }
 
 .form-error {

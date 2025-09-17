@@ -499,14 +499,20 @@ async function loadPayments(filters = {}) {
                 const amount = Number(payment.amount || 0).toFixed(2);
                 const dateStr = payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '-';
                 const timeCell = formatPaymentTimeCell(payment);
-                const client = Array.isArray(clientsCache) ? clientsCache.find(c => String(c.id) === String(payment.clientId)) : null;
-                const clientText = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() || (client.email || '—') : '—';
+                // Preferir datos del backend en PaymentDTO
+                const fromDtoName = `${payment.clientFirstName || ''} ${payment.clientLastName || ''}`.trim();
+                const fromDtoEmail = payment.clientEmail || '';
+                let clientText = fromDtoName || fromDtoEmail || '';
+                if (!clientText) {
+                    const client = Array.isArray(clientsCache) ? clientsCache.find(c => String(c.id) === String(payment.clientId)) : null;
+                    clientText = client ? (`${client.firstName || ''} ${client.lastName || ''}`.trim() || (client.email || '—')) : '—';
+                }
                 const actions = !payment.voided
-                    ? `<button class=\"payments-table-action-btn\" onclick=\"voidPayment(${payment.id})\">Anular</button>`
+                    ? `<button class="payments-table-action-btn" onclick="voidPayment(${payment.id})">Anular</button>`
                     : '<span class="status-badge voided">Anulado</span>';
                 return `
                 <tr>
-                    <td class="name-cell">${clientText}</td>
+                    <td class="name-cell">${clientText || '—'}</td>
                     <td style="text-align:right">$${amount}</td>
                     <td>${payment.method || '-'}</td>
                     <td class="date-cell">${dateStr}</td>
@@ -548,14 +554,20 @@ async function loadPayments(filters = {}) {
             const amount = Number(payment.amount || 0).toFixed(2);
             const dateStr = payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '-';
             const timeCell = formatPaymentTimeCell(payment);
-            const client = Array.isArray(clientsCache) ? clientsCache.find(c => String(c.id) === String(payment.clientId)) : null;
-            const clientText = client ? `${client.firstName || ''} ${client.lastName || ''}`.trim() || (client.email || '—') : '—';
+            // Preferir datos del backend en PaymentDTO
+            const fromDtoName = `${payment.clientFirstName || ''} ${payment.clientLastName || ''}`.trim();
+            const fromDtoEmail = payment.clientEmail || '';
+            let clientText = fromDtoName || fromDtoEmail || '';
+            if (!clientText) {
+                const client = Array.isArray(clientsCache) ? clientsCache.find(c => String(c.id) === String(payment.clientId)) : null;
+                clientText = client ? (`${client.firstName || ''} ${client.lastName || ''}`.trim() || (client.email || '—')) : '—';
+            }
             const actions = !payment.voided
                 ? `<button class=\"payments-table-action-btn\" onclick=\"voidPayment(${payment.id})\">Anular</button>`
                 : '<span class="status-badge voided">Anulado</span>';
             return `
             <tr>
-                <td class="name-cell">${clientText}</td>
+                <td class="name-cell">${clientText || '—'}</td>
                 <td style="text-align:right">$${amount}</td>
                 <td>${payment.method || '-'}</td>
                 <td class="date-cell">${dateStr}</td>
@@ -902,29 +914,73 @@ async function loadReportSummary() {
 function showReportResults(title, data) {
     const resultsDiv = document.getElementById('report-results');
     if (!resultsDiv) return;
-    resultsDiv.innerHTML = `
-        <h3>${title}</h3>
-        ${typeof data === 'string' ? data : 
-            `<div class="table-wrapper"><table class="table">
-                <thead>
-                    <tr>
-                        <th>Cliente</th>
-                        <th>Email</th>
-                        <th>Estado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${Array.isArray(data) ? data.map(client => `
-                        <tr>
-                            <td>${(client.firstName||'') + ' ' + (client.lastName||'')}</td>
-                            <td>${client.email||''}</td>
-                            <td>${client.active ? 'Activo' : 'Inactivo'}</td>
-                        </tr>
-                    `).join('') : ''}
-                </tbody>
-            </table></div>`
-        }
-    `;
+
+    // Si es texto (ej: Flujo de caja), mostrar bloque simple en estilo oscuro
+    if (typeof data === 'string') {
+        resultsDiv.innerHTML = `
+            <div class="clients-table-container">
+                <div class="table-header"><h3>${title}</h3></div>
+                <div class="modern-table-wrapper">
+                    <div style="padding:1rem;color:#e5e7eb;">${data}</div>
+                </div>
+            </div>`;
+        return;
+    }
+
+    // Normalizar data a arreglo
+    const rows = Array.isArray(data) ? data : [];
+    const empty = rows.length === 0;
+
+    // helper: formatea YYYY-MM-DD a dd/mm/yyyy sin problemas de timezone
+    const fmtYmd = (s) => {
+        if (!s || typeof s !== 'string') return '';
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) { try { return new Date(s).toLocaleDateString(); } catch { return s; } }
+        return `${Number(m[3])}/${Number(m[2])}/${m[1]}`;
+    };
+
+    // ¿Este reporte trae fecha de expiración?
+    const hasExpiration = !empty && Object.prototype.hasOwnProperty.call(rows[0], 'expirationDate');
+
+    const tableHtml = empty
+        ? `<div class="clients-table-container"><div class="table-header"><h3>${title}</h3></div><div class="modern-table-wrapper"><div style="padding:1rem;color:#8b9dc3;">Sin clientes para mostrar.</div></div></div>`
+        : `<div class="clients-table-container">
+             <div class="table-header"><h3>${title}</h3></div>
+             <div class="modern-table-wrapper">
+               <table class="modern-table">
+                 <thead>
+                   <tr>
+                     <th>Cliente</th>
+                     <th>Email</th>
+                     ${hasExpiration ? '<th>Fecha de expiración</th>' : '<th>Estado</th>'}
+                   </tr>
+                 </thead>
+                 <tbody>
+                   ${rows.map(client => {
+                        const name = `${(client.firstName||'')} ${(client.lastName||'')}`.trim();
+                        const email = client.email || '';
+                        if (hasExpiration) {
+                            const exp = fmtYmd(client.expirationDate);
+                            return `<tr>
+                                      <td class="name-cell">${name}</td>
+                                      <td class="email-cell">${email}</td>
+                                      <td class="date-cell">${exp}</td>
+                                    </tr>`;
+                        }
+                        const active = client.active ? 'Activo' : 'Inactivo';
+                        const badgeCls = client.active ? 'active' : 'inactive';
+                        return `<tr>
+                                  <td class="name-cell">${name}</td>
+                                  <td class="email-cell">${email}</td>
+                                  <td><span class="status-badge ${badgeCls}">${active}</span></td>
+                                </tr>`;
+                   }).join('')}
+                 </tbody>
+               </table>
+             </div>
+           </div>`;
+
+    resultsDiv.innerHTML = tableHtml;
 }
 
 // ============= Modal de Confirmación =============

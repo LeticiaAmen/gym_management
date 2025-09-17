@@ -41,6 +41,18 @@ INSERT INTO clients (first_name, last_name, email, phone, is_active, start_date,
 -- Reset secuencia de clients
 ALTER SEQUENCE clients_id_seq RESTART WITH 31;
 
+-- Clientes con membresía vencida (sin pagos vigentes) - nuevos de ejemplo
+INSERT INTO clients (first_name, last_name, email, phone, is_active, start_date, notes, created_at, updated_at) VALUES
+('Emilia',  'Álvarez',   'emilia.alvarez@example.com',  '11-3030-3030', true, CURRENT_DATE - INTERVAL '6 months', 'Ejemplo: última cuota vencida', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Franco',  'Benítez',   'franco.benitez@example.com',  '11-3131-3131', true, CURRENT_DATE - INTERVAL '4 months', 'Ejemplo: olvidó pagar este mes', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Gabriela','Cáceres',   'gabriela.caceres@example.com','11-3232-3232', true, CURRENT_DATE - INTERVAL '8 months', 'Ejemplo: sin pago vigente', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Hernán',  'Domínguez', 'hernan.dominguez@example.com','11-3333-3434', true, CURRENT_DATE - INTERVAL '10 months','Ejemplo: vencido reciente', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Ivana',   'Escobar',   'ivana.escobar@example.com',   '11-3535-3535', true, CURRENT_DATE - INTERVAL '7 months', 'Ejemplo: no renovó', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('Joaquín', 'Ferrer',    'joaquin.ferrer@example.com',  '11-3636-3636', true, CURRENT_DATE - INTERVAL '3 months', 'Ejemplo: último pago expirado', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- Ajustar secuencia de clients tras los nuevos inserts (próximo id = 37)
+ALTER SEQUENCE clients_id_seq RESTART WITH 37;
+
 -- Pagos de ejemplo
 -- Mensuales al día (expiration > hoy)
 INSERT INTO payments (client_id, amount, method, period_month, period_year, payment_date, expiration_date, payment_state, voided)
@@ -81,15 +93,14 @@ INSERT INTO payments (client_id, amount, method, period_month, period_year, paym
 (20, 5300.00, 'TRANSFER', EXTRACT(MONTH FROM (CURRENT_DATE - INTERVAL '2 months'))::int, EXTRACT(YEAR FROM (CURRENT_DATE - INTERVAL '2 months'))::int, CURRENT_DATE - INTERVAL '66 days', (CURRENT_DATE - INTERVAL '66 days') + INTERVAL '1 month', 'EXPIRED', false),
 (22, 5400.00, 'CASH',     EXTRACT(MONTH FROM (CURRENT_DATE - INTERVAL '2 months'))::int, EXTRACT(YEAR FROM (CURRENT_DATE - INTERVAL '2 months'))::int, CURRENT_DATE - INTERVAL '62 days', (CURRENT_DATE - INTERVAL '62 days') + INTERVAL '1 month', 'EXPIRED', false);
 
--- Vencidos por días (con duration_days especificado)
-INSERT INTO payments (client_id, amount, method, period_month, period_year, payment_date, expiration_date, payment_state, voided, duration_days) VALUES
-(30, 3000.00, 'CASH',   EXTRACT(MONTH FROM (CURRENT_DATE - INTERVAL '1 months'))::int, EXTRACT(YEAR FROM (CURRENT_DATE - INTERVAL '1 months'))::int, CURRENT_DATE - INTERVAL '20 days', (CURRENT_DATE - INTERVAL '20 days') + INTERVAL '10 days', 'EXPIRED', false, 10),
-(5,  2800.00, 'CASH',   EXTRACT(MONTH FROM (CURRENT_DATE - INTERVAL '1 months'))::int, EXTRACT(YEAR FROM (CURRENT_DATE - INTERVAL '1 months'))::int, CURRENT_DATE - INTERVAL '25 days', (CURRENT_DATE - INTERVAL '25 days') + INTERVAL '7 days',  'EXPIRED', false, 7);
-
--- Algunos pagos anulados (no deben contarse como vigentes)
-INSERT INTO payments (client_id, amount, method, period_month, period_year, payment_date, expiration_date, payment_state, voided)
-VALUES
-(3, 5000.00, 'CASH', EXTRACT(MONTH FROM CURRENT_DATE)::int, EXTRACT(YEAR FROM CURRENT_DATE)::int, CURRENT_DATE, CURRENT_DATE + INTERVAL '1 month', 'VOIDED', true);
+-- Pagos vencidos recientes para los nuevos clientes 31..36 (último pago expirado, sin renovaciones)
+INSERT INTO payments (client_id, amount, method, period_month, period_year, payment_date, expiration_date, payment_state, voided) VALUES
+(31, 5000.00, 'CASH',     EXTRACT(MONTH FROM (CURRENT_DATE - INTERVAL '1 months'))::int, EXTRACT(YEAR FROM (CURRENT_DATE - INTERVAL '1 months'))::int, CURRENT_DATE - INTERVAL '40 days', (CURRENT_DATE - INTERVAL '40 days') + INTERVAL '1 month', 'EXPIRED', false),
+(32, 5200.00, 'DEBIT',    EXTRACT(MONTH FROM (CURRENT_DATE - INTERVAL '1 months'))::int, EXTRACT(YEAR FROM (CURRENT_DATE - INTERVAL '1 months'))::int, CURRENT_DATE - INTERVAL '38 days', (CURRENT_DATE - INTERVAL '38 days') + INTERVAL '1 month', 'EXPIRED', false),
+(33, 5400.00, 'TRANSFER', EXTRACT(MONTH FROM (CURRENT_DATE - INTERVAL '1 months'))::int, EXTRACT(YEAR FROM (CURRENT_DATE - INTERVAL '1 months'))::int, CURRENT_DATE - INTERVAL '45 days', (CURRENT_DATE - INTERVAL '45 days') + INTERVAL '1 month', 'EXPIRED', false),
+(34, 5600.00, 'CREDIT',   EXTRACT(MONTH FROM (CURRENT_DATE - INTERVAL '1 months'))::int, EXTRACT(YEAR FROM (CURRENT_DATE - INTERVAL '1 months'))::int, CURRENT_DATE - INTERVAL '42 days', (CURRENT_DATE - INTERVAL '42 days') + INTERVAL '1 month', 'EXPIRED', false),
+(35, 4800.00, 'CASH',     EXTRACT(MONTH FROM (CURRENT_DATE - INTERVAL '1 months'))::int, EXTRACT(YEAR FROM (CURRENT_DATE - INTERVAL '1 months'))::int, CURRENT_DATE - INTERVAL '37 days', (CURRENT_DATE - INTERVAL '37 days') + INTERVAL '1 month', 'EXPIRED', false),
+(36, 5000.00, 'DEBIT',    EXTRACT(MONTH FROM (CURRENT_DATE - INTERVAL '1 months'))::int, EXTRACT(YEAR FROM (CURRENT_DATE - INTERVAL '1 months'))::int, CURRENT_DATE - INTERVAL '41 days', (CURRENT_DATE - INTERVAL '41 days') + INTERVAL '1 month', 'EXPIRED', false);
 
 -- Reset secuencia de payments (aprox. siguiente id)
 ALTER SEQUENCE payments_id_seq RESTART WITH 60;

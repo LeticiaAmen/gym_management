@@ -1,6 +1,8 @@
 package com.gym.gym_management.controller;
 
 import com.gym.gym_management.controller.dto.ClientDTO;
+import com.gym.gym_management.controller.dto.OverdueClientDTO;
+import com.gym.gym_management.controller.dto.ExpiringClientDTO;
 import com.gym.gym_management.service.ReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,15 +24,15 @@ public class ReportController {
      * Obtiene lista de clientes con pagos por vencer en los próximos 7 días
      */
     @GetMapping("/expiring")
-    public ResponseEntity<List<ClientDTO>> getExpiringPayments() {
+    public ResponseEntity<List<ExpiringClientDTO>> getExpiringPayments() {
         return ResponseEntity.ok(reportService.getClientsWithPaymentsExpiringSoon());
     }
 
     /**
-     * Obtiene lista de clientes con pagos vencidos
+     * Obtiene lista de clientes con último pago válido vencido, incluyendo fecha de expiración.
      */
     @GetMapping("/overdue")
-    public ResponseEntity<List<ClientDTO>> getOverduePayments() {
+    public ResponseEntity<List<OverdueClientDTO>> getOverduePayments() {
         return ResponseEntity.ok(reportService.getClientsWithOverduePayments());
     }
 
