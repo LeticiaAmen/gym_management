@@ -1,69 +1,49 @@
 package com.gym.gym_management.service;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.lang.NonNull;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
+/**
+ * Servicio simple para envío de correos transaccionales (texto plano) para recordatorios.
+ * Versión mínima: sólo construye y envía un email de recordatorio de vencimiento.
+ */
 @Service
-@ConditionalOnProperty(prefix = "app.email", name = "enabled", havingValue = "true", matchIfMissing = false)
 public class EmailService {
 
-    private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    /** Asunto usado en los recordatorios de pago próximo a vencer. */
+    public static final String SUBJECT_REMINDER = "Recordatorio: tu abono vence pronto";
 
-    private final PaymentService paymentService;
+    private final JavaMailSender mailSender;
+    private final String from;
 
-    public EmailService(PaymentService paymentService) {
-        this.paymentService = paymentService;
+    public EmailService(JavaMailSender mailSender,
+                        @Value("${app.mail.from:}") String configuredFrom,
+                        @Value("${spring.mail.username:}") String defaultUser) {
+        this.mailSender = mailSender;
+        this.from = (configuredFrom == null || configuredFrom.isBlank()) ? defaultUser : configuredFrom;
     }
 
-    // Recordatorios automáticos (no-op: solo logs si emails deshabilitados)
-    @Scheduled(cron = "0 0 9 * * ?") // 9:00 AM todos los días
-    public void sendPaymentReminders() {
-        paymentService.findExpiringPayments().forEach(payment -> {
-            try {
-                sendPaymentReminder(
-                    payment.getClient().getEmail(),
-                    payment.getClient().getFirstName(),
-                    payment.getAmount(),
-                    payment.getExpirationDate()
-                );
-                logger.info("[EmailService] Recordatorio (simulado) para pago ID: {}", payment.getId());
-            } catch (Exception e) {
-                logger.error("[EmailService] Error simulando recordatorio para pago ID: {}", payment.getId(), e);
-            }
-        });
-    }
-
-    @Scheduled(cron = "0 0 10 * * ?") // 10:00 AM todos los días
-    public void sendOverdueNotifications() {
-        paymentService.findOverduePayments().forEach(payment -> {
-            try {
-                sendOverdueNotification(
-                    payment.getClient().getEmail(),
-                    payment.getClient().getFirstName(),
-                    payment.getAmount(),
-                    payment.getExpirationDate()
-                );
-                logger.info("[EmailService] Vencido (simulado) para pago ID: {}", payment.getId());
-            } catch (Exception e) {
-                logger.error("[EmailService] Error simulando vencido para pago ID: {}", payment.getId(), e);
-            }
-        });
-    }
-
-    // Métodos de envío (no-op): solo loggean el contenido del mensaje
-    public void sendPaymentReminder(String toEmail, String clientName, Double amount, LocalDate expirationDate) {
-        logger.debug("Simulando envío de recordatorio a {} | {} | ${} | vence {}",
-                toEmail, clientName, amount, expirationDate != null ? expirationDate.format(DATE_FORMAT) : "-");
-    }
-
-    public void sendOverdueNotification(String toEmail, String clientName, Double amount, LocalDate expirationDate) {
-        logger.debug("Simulando notificación de vencido a {} | {} | ${} | venció {}",
-                toEmail, clientName, amount, expirationDate != null ? expirationDate.format(DATE_FORMAT) : "-");
+    /**
+     * Envía un correo de texto plano avisando que el pago vence en N días.
+     * @param to email del cliente
+     * @param clientName nombre completo o parcial del cliente
+     * @param expirationDate fecha de vencimiento formateada (dd/MM/yyyy)
+     */
+    public void sendExpirationReminder(@NonNull String to,
+                                       @NonNull String clientName,
+                                       @NonNull String expirationDate) {
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setFrom(from);
+        msg.setTo(to);
+        msg.setSubject(SUBJECT_REMINDER);
+        String body = "Hola " + clientName + ",\n\n" +
+                "Tu abono vence el " + expirationDate + ".\n" +
+                "Renová antes de esa fecha para no perder acceso.\n\n" +
+                "Gracias,\nEquipo del Gimnasio";
+        msg.setText(body);
+        mailSender.send(msg);
     }
 }

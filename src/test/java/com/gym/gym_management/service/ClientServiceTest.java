@@ -73,7 +73,7 @@ class ClientServiceTest {
         given(paymentService.computePeriodState(eq(1L), eq(today.getMonthValue()), eq(today.getYear())))
                 .willReturn(PaymentState.UP_TO_DATE);
         given(paymentService.computePeriodState(eq(2L), eq(today.getMonthValue()), eq(today.getYear())))
-                .willReturn(PaymentState.PENDING);
+                .willReturn(PaymentState.EXPIRED);
 
         List<ClientDTO> result = clientService.search(null, null, PaymentState.UP_TO_DATE);
         assertThat(result).hasSize(1);

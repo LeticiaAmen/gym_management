@@ -5,6 +5,7 @@ import com.gym.gym_management.model.PaymentState;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -16,13 +17,14 @@ public interface IPaymentRepository extends JpaRepository<Payment, Long> {
 
     List<Payment> findByClientId(Long clientId);
 
-    List<Payment> findByExpirationDateAndPaymentState(LocalDate date, PaymentState paymentState);
-
+    // Usado por job de recordatorios (filtra además voided=false)
+    List<Payment> findByExpirationDateAndPaymentStateAndVoidedFalse(LocalDate date, PaymentState paymentState);
+    // Usado para obtener vencidos (estado ya materializado como EXPIRED)
     List<Payment> findByExpirationDateBeforeAndPaymentState(LocalDate date, PaymentState paymentState);
 
     List<Payment> findByPaymentDateBetweenAndVoidedFalse(LocalDate from, LocalDate to);
 
-    // Búsqueda con filtros opcionales + paginación
+    // Filtros simples (estado persistido: UP_TO_DATE | EXPIRED | VOIDED)
     @Query("SELECT p FROM Payment p WHERE (:clientId IS NULL OR p.client.id = :clientId) " +
            "AND (:from IS NULL OR p.paymentDate >= :from) " +
            "AND (:to IS NULL OR p.paymentDate <= :to) " +
@@ -35,21 +37,25 @@ public interface IPaymentRepository extends JpaRepository<Payment, Long> {
             Pageable pageable
     );
 
-    // Idempotencia por período (ignorando pagos anulados)
     boolean existsByClient_IdAndMonthAndYearAndVoidedFalse(Long clientId, Integer month, Integer year);
 
-    // Último pago válido (no anulado) para un cliente
     Payment findTopByClient_IdAndVoidedFalseOrderByExpirationDateDesc(Long clientId);
 
-    // Último pago efectivo: prioridad por expirationDate y si es null usa paymentDate
     @Query("SELECT p FROM Payment p WHERE p.client.id = :clientId AND p.voided = false ORDER BY COALESCE(p.expirationDate, p.paymentDate) DESC")
     Payment findLastEffectiveByClient(@Param("clientId") Long clientId);
 
-    // Método para contar pagos expirados (para dashboard) - corregido el nombre del campo
-    long countByExpirationDateBeforeAndPaymentStateAndVoidedFalse(LocalDate date, PaymentState paymentState);
+    long countByPaymentStateAndVoidedFalse(PaymentState paymentState);
 
-    // Métodos para actividades recientes
     List<Payment> findByPaymentDateAfterAndVoidedFalseOrderByPaymentDateDesc(LocalDate date);
 
     List<Payment> findByExpirationDateBetweenAndVoidedFalseOrderByExpirationDateAsc(LocalDate startDate, LocalDate endDate);
+
+    @Query("SELECT p FROM Payment p JOIN FETCH p.client c WHERE p.expirationDate = :date AND p.voided = false AND p.paymentState = 'UP_TO_DATE'")
+    List<Payment> findByExpirationDateWithClient(@Param("date") LocalDate date);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Payment p SET p.paymentState=:expired WHERE p.paymentState=:upToDate AND p.voided=false AND p.expirationDate < :today")
+    int bulkExpire(@Param("today") LocalDate today,
+                   @Param("upToDate") PaymentState upToDate,
+                   @Param("expired") PaymentState expired);
 }

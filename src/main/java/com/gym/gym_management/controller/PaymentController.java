@@ -29,7 +29,7 @@ import java.util.Optional;
  *     <li>Listar pagos con filtros (cliente, fechas, estado) y paginación.</li>
  *     <li>Anular pagos (void) manteniendo trazabilidad.</li>
  *     <li>Consultar un pago puntual.</li>
- *     <li>Consultar el estado dinámico de un período (sin crear registros).</li>
+ *     <li>Consultar el estado dinámico de un período (sin crear registros). Estados disponibles: UP_TO_DATE, EXPIRED, VOIDED.</li>
  * </ul>
  * Siempre trabaja con DTOs para desacoplar la capa web de las entidades JPA.
  */
@@ -43,9 +43,7 @@ public class PaymentController {
 
     /**
      * Registra un nuevo pago asociado a un cliente.
-     * Maneja errores de validación funcional devolviendo 400, conflictos de negocio con 409
-     * y cliente inexistente con 404.
-     * @param request payload con los datos del pago (cliente, monto, período, método).
+     * @param request datos del pago (cliente, monto, período, método).
      * @return 201 + PaymentDTO creado o error acorde.
      */
     @PostMapping
@@ -60,21 +58,18 @@ public class PaymentController {
             }
             return ResponseEntity.badRequest().body(msg);
         } catch (IllegalStateException e) {
-            // Conflictos de negocio (idempotencia, inactivo, etc.)
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }
     }
 
     /**
      * Lista pagos aplicando filtros opcionales.
-     * Valida coherencia de rango de fechas.
-     * Por defecto se ordena por fecha de pago descendente (más recientes primero).
+     * Estados aceptados: UP_TO_DATE, EXPIRED, VOIDED.
      * @param clientId id de cliente (opcional).
      * @param from fecha mínima de paymentDate.
      * @param to fecha máxima de paymentDate.
-     * @param state estado textual (PENDING | UP_TO_DATE | EXPIRED | VOIDED).
-     * @param pageable parámetros de paginación (page, size, sort).
-     * @return página de PaymentDTO.
+     * @param state estado textual (UP_TO_DATE | EXPIRED | VOIDED).
+     * @param pageable parámetros de paginación.
      */
     @GetMapping
     public ResponseEntity<?> getPayments(
@@ -100,8 +95,7 @@ public class PaymentController {
     /**
      * Anula un pago existente marcándolo como VOIDED.
      * @param id identificador del pago.
-     * @param reason motivo de anulación para auditoría.
-     * @return PaymentDTO actualizado o error 404 / 409.
+     * @param reason motivo de anulación.
      */
     @PostMapping("/{id}/void")
     public ResponseEntity<?> voidPayment(
@@ -119,8 +113,6 @@ public class PaymentController {
 
     /**
      * Recupera un pago por id.
-     * @param id identificador.
-     * @return 200 con PaymentDTO o 404 si no existe.
      */
     @GetMapping("/{id}")
     public ResponseEntity<PaymentDTO> findById(@PathVariable Long id){
@@ -130,11 +122,7 @@ public class PaymentController {
 
     /**
      * Calcula el estado de un período sin necesidad de crear un pago.
-     * Usa la lógica del servicio (dueDate + 3 días de gracia) para distinguir PENDING vs EXPIRED.
-     * @param clientId id del cliente.
-     * @param month mes (1-12).
-     * @param year año.
-     * @return objeto con state, dueDate y graceEnd.
+     * Lógica derivada: si existe pago => UP_TO_DATE; si no y venció (venc+gracia) => EXPIRED; caso contrario UP_TO_DATE.
      */
     @GetMapping("/state")
     public ResponseEntity<?> getPeriodState(
@@ -156,20 +144,13 @@ public class PaymentController {
         }
     }
 
-    /**
-     * Parser estricto de estado. Acepta sólo los valores reales del enum.
-     * Permite null/blank = sin filtro.
-     * @param raw texto recibido.
-     * @return PaymentState o null.
-     * @throws IllegalArgumentException si el valor no corresponde a un estado válido.
-     */
     private PaymentState parseState(String raw) {
         if (raw == null || raw.isBlank()) return null;
         String normalized = raw.trim().toUpperCase(Locale.ROOT);
         try {
             return PaymentState.valueOf(normalized);
         } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("Estado inválido. Use PENDING | UP_TO_DATE | EXPIRED | VOIDED");
+            throw new IllegalArgumentException("Estado inválido. Use UP_TO_DATE | EXPIRED | VOIDED");
         }
     }
 }

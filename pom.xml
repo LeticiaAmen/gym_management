@@ -112,16 +112,11 @@
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<!-- Eliminar dependencia cruda de Jakarta Validation para usar el starter -->
-		<!--
 		<dependency>
-			<groupId>jakarta.validation</groupId>
-			<artifactId>jakarta.validation-api</artifactId>
-			<version>3.0.2</version>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
-		-->
-		<!-- Nota: Lombok eliminado para evitar incompatibilidades con determinadas versiones de JDK -->
-		<!-- Si se desea usar Lombok, elegir versión compatible con el JDK o ejecutar con JDK 17 -->
+
 	</dependencies>
 
 	<build>

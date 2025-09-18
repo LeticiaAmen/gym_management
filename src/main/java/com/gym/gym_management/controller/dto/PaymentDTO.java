@@ -22,7 +22,7 @@ import java.time.LocalDate;
  *   <li>paymentDate: fecha en que se registró el pago (puede venir del usuario o default = hoy).</li>
  *   <li>expirationDate: fecha hasta la cual el pago mantiene vigente la membresía (calculada).</li>
  *   <li>durationDays: alternativa para membresías de duración personalizada (en lugar de mensual).</li>
- *   <li>state: estado lógico (UP_TO_DATE, PENDING, EXPIRED, VOIDED).</li>
+ *   <li>state: estado lógico derivado (UP_TO_DATE, EXPIRED, VOIDED). EXPIRED se obtiene comparando expirationDate con hoy.</li>
  *   <li>voided / voidedBy / voidReason: trazabilidad de anulaciones.</li>
  * </ul>
  */

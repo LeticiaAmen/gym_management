@@ -63,22 +63,49 @@ La app crea el esquema y carga la semilla automáticamente (modo demo). Si usas 
 
 ---
 
+## Estrategia de estados de pago
+
+El sistema persiste estados en la entidad `Payment` para simplificar reportes y futuras integraciones (ej: torniquetes o control de acceso).
+
+Estados:
+- **UP_TO_DATE**: pago vigente desde `paymentDate` hasta `expirationDate`.
+- **EXPIRED**: se materializa (persistido) cuando `expirationDate < hoy` mediante un job diario (`PaymentExpirationJob`). Garantiza consultas rápidas y métricas consistentes.
+- **VOIDED**: pago anulado (baja lógica) con motivo y auditoría.
+
+No existe estado PENDING: mientras el pago esté dentro de su vigencia se considera UP_TO_DATE. Si un período aún no tiene pago y ya pasó la fecha conceptual + días de gracia, se considera EXPIRED a nivel lógico (para búsquedas de clientes) aunque no haya registro nuevo.
+
+Job de expiración:
+- Corre a las 02:00 AM (`PaymentExpirationJob`) y hace un bulk update UP_TO_DATE → EXPIRED para todos los pagos vencidos.
+- Idempotente: múltiples ejecuciones en el día no afectan una vez que se actualizó.
+
+Recordatorios:
+- `PaymentReminderJob` (configurable) busca pagos UP_TO_DATE que vencerán en X días y dispara emails con `EmailService`.
+- Se pueden desactivar con `app.reminder.enabled=false` (útil en tests).
+
+Ventajas de materializar EXPIRED:
+- Índices y queries simples por estado.
+- Menos lógica duplicada en frontend.
+- Base para reglas futuras (bloqueos, escalado de notificaciones, recargos).
+
+---
+
 ## Notas de diseño
 
 - Modelo principal: `Client` y `Payment`.
-  - `Payment` tiene `paymentDate`, `expirationDate`, `state`, `voided` y `durationDays` (opcional) para pagos por días.
-  - Si `durationDays` no viene, el sistema asume 1 mes de vigencia.
+  - `Payment` tiene `paymentDate`, `expirationDate`, `paymentState`, `voided` y `durationDays` (para pagos por días).
+  - `paymentState` se actualiza por lógica de negocio (UP_TO_DATE / EXPIRED / VOIDED).
 - API expone DTOs (no devuelve entidades JPA directamente).
 - Seguridad con JWT (rol ADMIN para panel).
 
 ---
 
-## Roadmap (cosas para mejorar pronto)
+## Roadmap (próximos pasos sugeridos)
 
-- Mejorar la UI y hacerla responsive.
-- Integrar email (notificaciones de pago, bienvenida, etc).
-- Filtros avanzados y paginación del lado del servidor.
-- Tests de integración adicionales y dockerización para levantar todo con un comando.
+- UI responsive.
+- Integrar servicio de email transaccional real (SendGrid / SES) con plantillas HTML.
+- Control de acceso físico (usar estado EXPIRED materializado).
+- Historial de transiciones de estado (tabla `payment_state_history`).
+- Docker Compose para levantar DB + app fácilmente.
 
 ---
 

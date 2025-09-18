@@ -122,7 +122,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void computePeriodState_pendingWhenNoPaymentAndFuturePeriod() {
+    void computePeriodState_futurePeriodWithoutPayment_isUpToDateDerived() {
         LocalDate today = LocalDate.now();
         int nextMonth = today.getMonthValue() == 12 ? 1 : today.getMonthValue() + 1;
         int year = today.getMonthValue() == 12 ? today.getYear() + 1 : today.getYear();
@@ -131,7 +131,7 @@ class PaymentServiceTest {
         given(paymentRepository.existsByClient_IdAndMonthAndYearAndVoidedFalse(1L, nextMonth, year)).willReturn(false);
 
         PaymentState st = paymentService.computePeriodState(1L, nextMonth, year);
-        assertThat(st).isEqualTo(PaymentState.PENDING);
+        assertThat(st).isEqualTo(PaymentState.UP_TO_DATE); // derivado (no se distingue pendiente)
     }
 
     @Test
@@ -143,4 +143,3 @@ class PaymentServiceTest {
         assertThat(st).isEqualTo(PaymentState.UP_TO_DATE);
     }
 }
-
