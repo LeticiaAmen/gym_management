@@ -13,6 +13,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Controlador REST para gestionar operaciones sobre clientes.
@@ -31,6 +33,8 @@ import java.util.List;
 @PreAuthorize("hasRole('ADMIN')")
 public class ClientController {
 
+    private static final Logger log = LoggerFactory.getLogger(ClientController.class);
+
     @Autowired
     private ClientService clientService;
 
@@ -38,13 +42,44 @@ public class ClientController {
     @GetMapping
     public ResponseEntity<List<ClientDTO>> find(
             @RequestParam(value = "q", required = false) String q,
-            @RequestParam(value = "active", required = false) Boolean active,
-            @RequestParam(value = "payment", required = false) PaymentState payment
+            @RequestParam(value = "active", required = false) String activeParam,
+            @RequestParam(value = "payment", required = false) String paymentParam
     ) {
-        if (q != null || active != null || payment != null) {
-            return ResponseEntity.ok(clientService.search(q, active, payment));
+        log.debug("[GET /clients] q={}, activeParam='{}', paymentParam='{}'", q, activeParam, paymentParam);
+        Boolean active = null;
+        if (activeParam != null && !activeParam.isBlank()) {
+            String v = activeParam.trim().toLowerCase();
+            if (v.equals("true") || v.equals("active") || v.equals("activos")) {
+                active = true;
+            } else if (v.equals("false") || v.equals("inactive") || v.equals("inactivos")) {
+                active = false;
+            } else if (v.equals("all") || v.equals("todos")) {
+                active = null; // sin filtro
+            } else {
+                log.debug("[GET /clients] valor 'active' desconocido '{}', se ignora", v);
+            }
         }
-        return ResponseEntity.ok(clientService.findAll());
+        PaymentState paymentState = null;
+        if (paymentParam != null && !paymentParam.isBlank()) {
+            String v = paymentParam.trim().toUpperCase();
+            if (v.equals("ALL") || v.equals("TODOS")) {
+                paymentState = null;
+            } else {
+                try {
+                    paymentState = PaymentState.valueOf(v);
+                } catch (IllegalArgumentException ex) {
+                    log.debug("[GET /clients] valor 'payment' desconocido '{}', se ignora", v);
+                }
+            }
+        }
+        if (q != null || active != null || paymentState != null) {
+            List<ClientDTO> out = clientService.search(q, active, paymentState);
+            log.debug("[GET /clients] filtros aplicados -> {} resultados", out.size());
+            return ResponseEntity.ok(out);
+        }
+        List<ClientDTO> all = clientService.findAll();
+        log.debug("[GET /clients] sin filtros -> {} resultados", all.size());
+        return ResponseEntity.ok(all);
     }
 
     // Crear cliente

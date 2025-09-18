@@ -8,6 +8,7 @@ import com.gym.gym_management.repository.IUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -26,24 +27,20 @@ import java.util.Optional;
  * <ul>
  *     <li><b>Registro de pagos</b>: con validaciones de negocio e idempotencia (cliente + mes + año únicos mientras no esté anulado).</li>
  *     <li><b>Cálculo de vencimiento</b>: mensual por defecto o personalizado por días (durationDays).</li>
- *     <li><b>Persistencia de estado</b>: se guardan estados {@code UP_TO_DATE}, {@code VOIDED}; el estado {@code EXPIRED} se materializa (persistido) mediante un job diario que ejecuta un bulk update.</li>
+ *     <li><b>Persistencia de estado</b>: se guardan estados {@code UP_TO_DATE}, {@code EXPIRED}, {@code VOIDED}. El estado EXPIRED se materializa mediante un job diario (bulk update) apenas la fecha de expiración queda en el pasado.</li>
  *     <li><b>Anulación (void)</b>: marca lógica que preserva trazabilidad y evita borrar registros históricos.</li>
  *     <li><b>Consultas filtradas</b>: soporte de paginado y filtros por cliente, fechas y estado.</li>
  *     <li><b>Recordatorios</b>: obtención de pagos próximos a vencer (para disparar emails).</li>
- *     <li><b>Expiración masiva</b>: transición automática UP_TO_DATE -> EXPIRED cuando vencen (job externo llama {@link #expireOverduePayments()}).</li>
+ *     <li><b>Expiración masiva</b>: transición automática UP_TO_DATE -> EXPIRED cuando expiran (job llama {@link #expireOverduePayments()}).</li>
  * </ul>
  * Diseño y decisiones:
  * <ul>
- *     <li>No se persiste un estado "intermedio" (ej. PENDING). Mientras no expire ni se anule, se considera {@code UP_TO_DATE}.</li>
- *     <li>El cálculo del estado de un período sin pago registrado se simplifica a binario (antes / después de la gracia). Si se supera el período de gracia sin pago, se comunica como {@code EXPIRED} aunque no exista Payment para ese mes aún (útil para UI/reportes rápidos).</li>
- *     <li>El job de expiración garantiza consistencia histórica (estadísticas, integraciones futuras para acceso físico al gimnasio).</li>
+ *     <li>Se eliminan días de gracia: un pago pasa a EXPIRED en cuanto su expirationDate es menor a hoy (el job lo materializa).</li>
+ *     <li>Para períodos sin pago, el estado derivado es EXPIRED si la fecha conceptual (día 10) está en el pasado; de lo contrario UP_TO_DATE.</li>
  * </ul>
  */
 @Service
 public class PaymentService {
-
-    /** Días de gracia luego del dueDate conceptual del período (negocio). */
-    private static final int GRACE_DAYS = 3;
 
     @Autowired
     private IPaymentRepository paymentRepository;
@@ -84,21 +81,17 @@ public class PaymentService {
         if (paymentRepository.existsByClient_IdAndMonthAndYearAndVoidedFalse(dto.getClientId(), dto.getMonth(), dto.getYear())) {
             throw new IllegalStateException("Ya existe un pago válido para ese período");
         }
-
         LocalDate payDate = dto.getPaymentDate() != null ? dto.getPaymentDate() : LocalDate.now();
         if (dto.getPaymentDate() != null && payDate.isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("La fecha de pago no puede ser futura");
         }
-
         LocalDate expiration = computeExpiration(payDate, dto.getDurationDays());
-
         Payment payment = fromDTO(dto);
         payment.setClient(client);
         payment.setState(PaymentState.UP_TO_DATE);
         payment.setPaymentDate(payDate);
         payment.setExpirationDate(expiration);
         payment.setDurationDays(dto.getDurationDays());
-
         Payment saved = paymentRepository.save(payment);
         auditService.logPaymentCreation(saved);
         PaymentDTO out = toDTO(saved);
@@ -108,17 +101,47 @@ public class PaymentService {
     }
 
     /**
-     * Devuelve pagos paginados aplicando filtros opcionales.
-     * @param clientId id de cliente (nullable)
-     * @param from fecha mínima (paymentDate >= from)
-     * @param to fecha máxima (paymentDate <= to)
+     * Recupera pagos aplicando filtros dinámicos (cliente, rango de fechas y estado) usando Specifications.
+     * <p>
+     * Por qué Specifications:
+     * <ul>
+     *   <li>Evitan construir manualmente una consulta JPQL con muchos OR/AND y parámetros opcionales.</li>
+     *   <li>Permiten componer predicados de forma segura (si un filtro es null simplemente no se agrega).</li>
+     *   <li>Solucionan el error 500 que ocurría cuando la query con parámetros opcionales (from / to) chocaba con la sintaxis.</li>
+     *   <li>Facilitan ampliar en el futuro (ej: filtrar por método de pago) sin reescribir la consulta completa.</li>
+     * </ul>
+     * Flujo interno:
+     * <ol>
+     *   <li>Comienza con un Specification vacío.</li>
+     *   <li>Si viene clientId agrega predicate: client.id = :clientId.</li>
+     *   <li>Si viene from agrega predicate: paymentDate >= :from.</li>
+     *   <li>Si viene to agrega predicate: paymentDate <= :to.</li>
+     *   <li>Si viene state agrega predicate: paymentState = :state.</li>
+     *   <li>Ejecuta findAll(spec, pageable) y mapea a DTO.</li>
+     * </ol>
+     * @param clientId id del cliente (opcional)
+     * @param from fecha mínima inclusive (paymentDate >= from) – null ignora filtro
+     * @param to fecha máxima inclusive (paymentDate <= to) – null ignora filtro
      * @param state estado persistido (UP_TO_DATE, EXPIRED, VOIDED) o null para cualquiera
-     * @param pageable configuración de paginación y orden
-     * @return página de PaymentDTO
+     * @param pageable paginación y orden
+     * @return página de pagos en formato DTO
      */
     public Page<PaymentDTO> findPayments(Long clientId, LocalDate from, LocalDate to, PaymentState state, Pageable pageable) {
-        return paymentRepository.findByFilters(clientId, from, to, state, pageable)
-                .map(this::toDTO);
+        // Construcción incremental de la Specification; cada filtro opcional se añade sólo si se solicita.
+        Specification<Payment> spec = Specification.where(null);
+        if (clientId != null) { // Filtra por cliente específico
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("client").get("id"), clientId));
+        }
+        if (from != null) { // Fecha mínima (inclusive)
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("paymentDate"), from));
+        }
+        if (to != null) { // Fecha máxima (inclusive)
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("paymentDate"), to));
+        }
+        if (state != null) { // Estado persistido
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("paymentState"), state));
+        }
+        return paymentRepository.findAll(spec, pageable).map(this::toDTO);
     }
 
     /**
@@ -221,30 +244,29 @@ public class PaymentService {
     }
 
     /**
-     * Determina el estado lógico de un período (mes/año) para un cliente aunque no exista un Payment para ese período.
-     * Reglas simplificadas actuales:
+     * Determina el estado para un período mes/año:
      * <ul>
-     *     <li>Existe pago no anulado del período → si venció y superó gracia → EXPIRED; si no → UP_TO_DATE.</li>
-     *     <li>No existe pago → si venció y superó gracia → EXPIRED; si no → UP_TO_DATE ("aún dentro de ventana para pagar").</li>
+     *   <li>Si existe un Payment no anulado se devuelve su estado persistido (UP_TO_DATE o EXPIRED o VOIDED).</li>
+     *   <li>Si no existe Payment: se computa la fecha conceptual (día 10). Si está en el pasado ( < hoy ) => EXPIRED; si hoy es igual o anterior => UP_TO_DATE.</li>
      * </ul>
-     * Nota: este método no consulta ni fuerza materialización de EXPIRED; se usa sobre todo para vistas rápidas o filtros de clientes.
-     * @param clientId id de cliente
-     * @param month mes
-     * @param year año
-     * @return estado lógico estimado
+     * No hay días de gracia: la comparación es directa contra hoy.
+     * @param clientId id cliente
+     * @param month mes (1-12)
+     * @param year año (>=2000)
+     * @return estado resultante
      */
     public PaymentState computePeriodState(Long clientId, int month, int year) {
         if (clientId == null) throw new IllegalArgumentException("clientId es obligatorio");
         if (!clientRepository.existsById(clientId)) {
             throw new IllegalArgumentException("Cliente no encontrado");
         }
-        LocalDate due = computeDueDate(month, year);
-        LocalDate graceEnd = due.plusDays(GRACE_DAYS);
-        LocalDate today = LocalDate.now();
-        if (today.isAfter(graceEnd)) {
-            return PaymentState.EXPIRED;
-        }
-        return PaymentState.UP_TO_DATE;
+        return paymentRepository.findByClient_IdAndMonthAndYearAndVoidedFalse(clientId, month, year)
+                .map(Payment::getState)
+                .orElseGet(() -> {
+                    LocalDate due = computeDueDate(month, year);
+                    LocalDate today = LocalDate.now();
+                    return today.isAfter(due) ? PaymentState.EXPIRED : PaymentState.UP_TO_DATE;
+                });
     }
 
     // ===================== Métodos internos de apoyo =====================

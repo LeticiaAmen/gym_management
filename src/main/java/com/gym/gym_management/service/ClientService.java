@@ -2,10 +2,8 @@ package com.gym.gym_management.service;
 
 import com.gym.gym_management.controller.dto.ClientDTO;
 import com.gym.gym_management.model.Client;
-import com.gym.gym_management.model.Payment;
 import com.gym.gym_management.model.PaymentState;
 import com.gym.gym_management.repository.IClientRepository;
-import com.gym.gym_management.repository.IPaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -13,7 +11,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,9 +18,6 @@ public class ClientService {
 
     @Autowired
     private IClientRepository clientRepository;
-
-    @Autowired
-    private IPaymentRepository paymentRepository;
 
     @Autowired
     private PaymentService paymentService;
@@ -40,19 +34,21 @@ public class ClientService {
 
     // Búsqueda con filtros opcionales
     public List<ClientDTO> search(String q, Boolean active, PaymentState paymentState) {
-        List<Client> base = (q != null || active != null)
-                ? clientRepository.search((q == null || q.isBlank()) ? null : q.trim(), active)
-                : clientRepository.findAll();
-
+        String text = (q == null || q.isBlank()) ? null : q.trim();
+        List<Client> base;
+        if (text == null && active != null) {
+            base = clientRepository.findByActive(active);
+        } else if (text != null || active != null) { // si hay texto o active (aunque sea null+texto)
+            base = clientRepository.search(text, active);
+        } else {
+            base = clientRepository.findAll();
+        }
         if (paymentState != null) {
             LocalDate today = LocalDate.now();
             int month = today.getMonthValue();
             int year = today.getYear();
             base = base.stream()
-                    .filter(c -> {
-                        PaymentState derived = paymentService.computePeriodState(c.getId(), month, year);
-                        return Objects.equals(derived, paymentState);
-                    })
+                    .filter(c -> paymentService.computePeriodState(c.getId(), month, year) == paymentState)
                     .collect(Collectors.toList());
         }
         return base.stream().map(this::toDTO).collect(Collectors.toList());

@@ -19,23 +19,22 @@ public interface IClientRepository extends JpaRepository<Client, Long> {
 
     boolean existsByEmail(String email);
 
-    // para validar duplicados excluyendo el propio registro
     boolean existsByEmailAndIdNot(String email, Long id);
 
-    // búsqueda por texto (nombre, apellido o email) y activo opcional
-    @Query("SELECT c FROM Client c WHERE (:q IS NULL OR lower(c.firstName) LIKE lower(concat('%',:q,'%')) " +
-            "OR lower(c.lastName) LIKE lower(concat('%',:q,'%')) " +
-            "OR lower(c.email) LIKE lower(concat('%',:q,'%'))) " +
-            "AND (:active IS NULL OR c.isActive = :active)")
+    @Query("SELECT c FROM Client c WHERE ( :q IS NULL OR (" +
+            "LOWER(c.firstName) LIKE CONCAT('%', LOWER(:q), '%') OR " +
+            "LOWER(c.lastName)  LIKE CONCAT('%', LOWER(:q), '%') OR " +
+            "LOWER(c.email)     LIKE CONCAT('%', LOWER(:q), '%') ) ) " +
+            "AND ( :active IS NULL OR c.isActive = :active )")
     List<Client> search(@Param("q") String q, @Param("active") Boolean active);
 
-    // Método para contar clientes activos (para dashboard)
+    @Query("SELECT c FROM Client c WHERE c.isActive = :active")
+    List<Client> findByActive(@Param("active") boolean active);
+
     long countByIsActiveTrue();
 
-    // Método para obtener clientes registrados recientemente
     List<Client> findByStartDateAfterOrderByStartDateDesc(LocalDate date);
 
-    // Clientes activos cuyo último pago válido (no anulado) está vencido
     @Query("SELECT c FROM Client c WHERE c.isActive = true AND EXISTS (" +
            " SELECT 1 FROM Payment p WHERE p.client = c AND p.voided = false AND p.expirationDate = (" +
            "   SELECT MAX(p2.expirationDate) FROM Payment p2 WHERE p2.client = c AND p2.voided = false" +
@@ -43,7 +42,6 @@ public interface IClientRepository extends JpaRepository<Client, Long> {
            ")")
     List<Client> findActiveClientsWithLastPaymentExpired(@Param("today") LocalDate today);
 
-    // Clientes activos SIN ningún pago válido vigente (no anulado) a partir de hoy
     @Query("SELECT c FROM Client c WHERE c.isActive = true AND NOT EXISTS (" +
            " SELECT 1 FROM Payment p WHERE p.client = c AND p.voided = false AND p.expirationDate >= :today" +
            ")")

@@ -7,6 +7,46 @@
  */
 import { apiFetch } from './api.js';
 
+/* ============================================================================
+ * UI / Frontend Admin Panel
+ * ============================================================================
+ * Este archivo concentra la lógica de interacción del panel administrativo.
+ *
+ * Estructura general:
+ *  1. Utilidades y helpers (formateo de fechas, duración de pago, etc.).
+ *  2. Gestión de clientes (carga, filtros, formularios, acciones activar/desactivar/pausar).
+ *  3. Gestión de pagos (listado, filtros, anulación, registro nuevo, multi‑cliente).
+ *  4. Reportes (consultas de datos agregados y tablas dinámicas).
+ *  5. Dashboard (estadísticas rápidas + actividades recientes).
+ *  6. Infraestructura UI (confirmaciones modales, navegación de secciones, delegación de eventos).
+ *
+ * Principios usados:
+ *  - Separar responsabilidades por función (cada función hace 1 cosa clara).
+ *  - Evitar duplicar lógica (helpers reutilizados: formatDateForInput, resolveClientIdsFromQuery, etc.).
+ *  - Fallbacks tolerantes: si falla un fetch se muestra un mensaje legible.
+ *  - No bloquear toda la app por un error parcial: cada carga atrapa excepciones localmente.
+ *  - Protección visual: placeholders (“--” o mensajes cortos) mientras no hay datos.
+ *
+ * Flujo típico (ejemplo para filtros de pagos):
+ *  1. Usuario selecciona fechas / estado / cliente.
+ *  2. Se construye objeto filters (filterPayments()).
+ *  3. loadPayments(filters) arma querystring y hace llamada a /api/payments.
+ *  4. Respuesta JSON (Page) -> se extrae page.content -> se ordena -> se pinta tabla.
+ *  5. Si error HTTP -> mensaje “No se pudo cargar pagos.” (no rompe otras secciones).
+ *
+ * Notas de accesibilidad / UX:
+ *  - Se usan títulos y textos descriptivos en botones (title="Editar", etc.).
+ *  - Botones deshabilitados durante operaciones críticas para evitar doble envío.
+ *  - Alertas simples (alert()) para feedback rápido; podría evolucionar a un sistema de toasts.
+ *
+ * Posibles mejoras futuras (no incluidas pero fáciles de sumar):
+ *  - Reemplazar alert/prompts por componentes modales estilizados.
+ *  - Paginar tablas grandes (actualmente se trae size=50 por defecto en pagos).
+ *  - Spinner / indicador de carga mientras llegan los datos.
+ *  - Internacionalización centralizada (hoy strings en español inline).
+ *  - Migrar a framework (React/Vue) si crece la complejidad de estado.
+ * ============================================================================ */
+
 // Helper: normaliza fechas a yyyy-MM-dd para inputs type=date
 function formatDateForInput(value) {
     if (!value) return '';
@@ -57,6 +97,7 @@ function isCurrentlyPaused(client) {
 // Cache simple en memoria para reutilizar datos en acciones (editar)
 let clientsCache = [];
 
+// ===================== Gestión de Secciones / Navegación =====================
 // Navegación simple entre secciones
 function showSection(sectionId, skipAuto = false) {
     document.querySelectorAll('.section').forEach(section => {
@@ -85,7 +126,7 @@ function logout() {
     window.location.href = '/index.html';
 }
 
-// ============= Clientes =============
+// ===================== Clientes =====================
 async function loadClients(filters = null) {
     try {
         const url = new URL('/api/clients', window.location.origin);
@@ -142,13 +183,39 @@ async function loadClients(filters = null) {
 
 function getClientFiltersFromDOM() {
     const q = document.getElementById('client-q')?.value?.trim();
-    const activeVal = document.getElementById('client-active')?.value;
-    const payment = document.getElementById('client-payment')?.value;
+    const activeRaw = document.getElementById('client-active')?.value || '';
+    const paymentRaw = document.getElementById('client-payment')?.value || '';
+
     const filters = {};
     if (q) filters.q = q;
-    if (activeVal === 'true') filters.active = true;
-    else if (activeVal === 'false') filters.active = false;
-    if (payment) filters.payment = payment;
+
+    const normalize = (s) => (s || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // ----- Active -----
+    if (activeRaw) {
+        const normA = normalize(activeRaw);
+        if (['TRUE','ACTIVO','ACTIVOS','ACTIVE'].includes(normA)) {
+            filters.active = 'true'; // backend acepta 'true'
+        } else if (['FALSE','INACTIVO','INACTIVOS','INACTIVE'].includes(normA)) {
+            filters.active = 'false';
+        } // 'TODOS' u otros => no se envía
+    }
+
+    // ----- Payment -----
+    if (paymentRaw) {
+        const normP = normalize(paymentRaw).replace(/PAGO:?\s*/,''); // quita prefijo 'PAGO: '
+        if (['TODOS','ALL',''].includes(normP)) {
+            // no enviar
+        } else if (['AL DIA','AL DÍA','ALDIA'].includes(normP)) {
+            filters.payment = 'UP_TO_DATE';
+        } else if (normP === 'VENCIDO' || normP === 'VENCIDOS') {
+            filters.payment = 'EXPIRED';
+        } else if (normP === 'ANULADO' || normP === 'ANULADOS') {
+            filters.payment = 'VOIDED';
+        } else if (['UP_TO_DATE','EXPIRED','VOIDED'].includes(normP)) {
+            filters.payment = normP; // ya es técnico
+        }
+    }
     return filters;
 }
 
@@ -457,7 +524,13 @@ function showPauseForm(clientId) {
       });
 }
 
-// ============= Pagos =============
+// ===================== Pagos =====================
+// loadPayments: núcleo de la vista de pagos.
+// Dos modos:
+//  1) Múltiples clientIds: se hacen varias peticiones en paralelo (Promise.allSettled) y se combinan resultados.
+//  2) Modo estándar: una petición paginada (Page) con filtros.
+// Reglas de ordenamiento secundarias: primero por paymentDate desc, luego por id desc para consistencia.
+// Protección ante respuestas no esperadas: intenta detectar si es Page (content) o lista directa.
 async function loadPayments(filters = {}) {
     try {
         // Si viene un arreglo de clientIds, hacemos múltiples requests y mergeamos
@@ -580,6 +653,8 @@ async function loadPayments(filters = {}) {
     }
 }
 
+// populatePaymentClientFilter: llena un datalist HTML para autocompletar clientes en filtros de pagos.
+// Carga clientes solo si no están cacheados (patrón: lazy loading en memoria).
 async function populatePaymentClientFilter() {
     const datalist = document.getElementById('payment-client-options');
     const input = document.getElementById('payment-client-q');
@@ -604,6 +679,8 @@ async function populatePaymentClientFilter() {
     }
 }
 
+// filterPayments: construye objeto filters a partir de inputs, resolviendo nombres/textos a IDs.
+// Edge case: si el usuario escribe algo que no coincide con ningún cliente se evita llamar al backend y se muestra tabla vacía.
 function filterPayments() {
     const from = document.getElementById('date-from')?.value;
     const to = document.getElementById('date-to')?.value;
@@ -830,7 +907,10 @@ async function showPaymentForm() {
     });
 }
 
-// ============= Reportes =============
+// ===================== Reportes =====================
+// Cada reporte hace fetch aislado y reutiliza showReportResults para pintar contenido.
+// showReportResults detecta si recibe texto simple (flujo de caja) o lista de clientes/pagos.
+// hasExpiration decide si renderiza columna “Fecha de expiración”.
 async function getExpiringReport() {
     try {
         const response = await apiFetch('/api/reports/expiring');
@@ -983,7 +1063,10 @@ function showReportResults(title, data) {
     resultsDiv.innerHTML = tableHtml;
 }
 
-// ============= Modal de Confirmación =============
+// ===================== Modal de Confirmación =====================
+// showConfirmation: implementa un modal genérico con Promise para un flujo async limpio (await en llamadas).
+// Patrón: la función construye handlers, muestra modal, y resuelve true/false según acción del usuario.
+// hideConfirmation: encapsula la lógica de cierre y limpieza de listeners.
 function showConfirmation({ title, message, icon = 'warning', confirmText = 'Confirmar', cancelText = 'Cancelar', type = 'danger' }) {
     return new Promise((resolve) => {
         const modal = document.getElementById('confirmation-modal');
@@ -1066,7 +1149,9 @@ function hideConfirmation() {
     }
 }
 
-// ============= Dashboard =============
+// ===================== Dashboard =====================
+// loadDashboardStats / loadRecentActivities: llamadas independientes para que un fallo no afecte la otra.
+// Diseño tolerante: placeholders '--' o mensajes de error contextual.
 async function loadDashboardStats() {
     try {
         const response = await apiFetch('/api/dashboard/stats');

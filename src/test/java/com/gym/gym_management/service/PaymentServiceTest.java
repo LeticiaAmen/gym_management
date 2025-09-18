@@ -122,24 +122,39 @@ class PaymentServiceTest {
     }
 
     @Test
-    void computePeriodState_futurePeriodWithoutPayment_isUpToDateDerived() {
+    void computePeriodState_futurePeriodWithoutPayment_isUpToDate() {
         LocalDate today = LocalDate.now();
         int nextMonth = today.getMonthValue() == 12 ? 1 : today.getMonthValue() + 1;
         int year = today.getMonthValue() == 12 ? today.getYear() + 1 : today.getYear();
 
         given(clientRepository.existsById(1L)).willReturn(true);
-        given(paymentRepository.existsByClient_IdAndMonthAndYearAndVoidedFalse(1L, nextMonth, year)).willReturn(false);
+        given(paymentRepository.findByClient_IdAndMonthAndYearAndVoidedFalse(1L, nextMonth, year)).willReturn(Optional.empty());
 
         PaymentState st = paymentService.computePeriodState(1L, nextMonth, year);
-        assertThat(st).isEqualTo(PaymentState.UP_TO_DATE); // derivado (no se distingue pendiente)
+        assertThat(st).isEqualTo(PaymentState.UP_TO_DATE);
     }
 
     @Test
-    void computePeriodState_upToDateWhenPaymentExists() {
+    void computePeriodState_pastPeriodWithoutPayment_isExpired() {
         LocalDate today = LocalDate.now();
+        int prevMonth = today.getMonthValue() == 1 ? 12 : today.getMonthValue() - 1;
+        int year = prevMonth == 12 && today.getMonthValue() == 1 ? today.getYear() - 1 : today.getYear();
         given(clientRepository.existsById(1L)).willReturn(true);
-        given(paymentRepository.existsByClient_IdAndMonthAndYearAndVoidedFalse(1L, today.getMonthValue(), today.getYear())).willReturn(true);
+        given(paymentRepository.findByClient_IdAndMonthAndYearAndVoidedFalse(1L, prevMonth, year)).willReturn(Optional.empty());
+
+        PaymentState st = paymentService.computePeriodState(1L, prevMonth, year);
+        assertThat(st).isEqualTo(PaymentState.EXPIRED);
+    }
+
+    @Test
+    void computePeriodState_returnsPersistedStateWhenPaymentExists() {
+        LocalDate today = LocalDate.now();
+        Payment payment = new Payment();
+        payment.setState(PaymentState.EXPIRED); // simulamos que el job ya lo materializó
+        given(clientRepository.existsById(1L)).willReturn(true);
+        given(paymentRepository.findByClient_IdAndMonthAndYearAndVoidedFalse(1L, today.getMonthValue(), today.getYear())).willReturn(Optional.of(payment));
+
         PaymentState st = paymentService.computePeriodState(1L, today.getMonthValue(), today.getYear());
-        assertThat(st).isEqualTo(PaymentState.UP_TO_DATE);
+        assertThat(st).isEqualTo(PaymentState.EXPIRED);
     }
 }

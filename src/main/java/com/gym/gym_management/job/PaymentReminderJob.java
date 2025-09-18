@@ -4,6 +4,7 @@ import com.gym.gym_management.model.Payment;
 import com.gym.gym_management.repository.IPaymentRepository;
 import com.gym.gym_management.service.EmailService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,10 +15,10 @@ import java.util.List;
 
 /**
  * Job programado que envía recordatorios de renovación.
- * Opción A: cada Payment representa un período ya pagado; se recuerda la renovación
- * daysBefore días antes de su expirationDate (sin usar estados PENDING).
+ * Solo se instancia si app.reminder.enabled=true para facilitar tests sin stub de mail.
  */
 @Component
+@ConditionalOnProperty(value = "app.reminder.enabled", havingValue = "true")
 public class PaymentReminderJob {
 
     private final IPaymentRepository paymentRepository;
@@ -41,7 +42,7 @@ public class PaymentReminderJob {
     }
 
     /** Ejecuta el recordatorio (cron ajustable). */
-    @Scheduled(cron = "0 * * * * *") // pruebas: cada minuto. Producción: 0 0 9 * * *
+    @Scheduled(cron = "0 0 9 * * *") // pruebas: cada minuto. Producción: 0 0 9 * * *
     @Transactional(readOnly = true)
     public void sendReminders() {
         if (!enabled) return;

@@ -82,12 +82,7 @@ public class PaymentController {
         if (from != null && to != null && from.isAfter(to)) {
             return ResponseEntity.badRequest().body("El parámetro 'from' no puede ser posterior a 'to'");
         }
-        PaymentState parsedState;
-        try {
-            parsedState = parseState(state); // null si no viene
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ex.getMessage());
-        }
+        PaymentState parsedState = mapFlexibleState(state); // null si no viene / no se reconoce
         Page<PaymentDTO> page = paymentService.findPayments(clientId, from, to, parsedState, pageable);
         return ResponseEntity.ok(page);
     }
@@ -144,13 +139,27 @@ public class PaymentController {
         }
     }
 
-    private PaymentState parseState(String raw) {
+    private PaymentState mapFlexibleState(String raw) {
         if (raw == null || raw.isBlank()) return null;
-        String normalized = raw.trim().toUpperCase(Locale.ROOT);
+        String normalized = raw.trim().toUpperCase(Locale.ROOT)
+                .replace("PAGO:", "")
+                .replace("PAGO", "")
+                .trim();
+        if (normalized.isBlank() || normalized.equals("TODOS") || normalized.equals("ALL")) return null;
+        // Sinónimos
+        if (normalized.equals("AL DIA") || normalized.equals("AL DÍA") || normalized.equals("ALDIA") || normalized.equals("UPTODATE")) {
+            return PaymentState.UP_TO_DATE;
+        }
+        if (normalized.startsWith("VENCID")) { // VENCIDO / VENCIDOS
+            return PaymentState.EXPIRED;
+        }
+        if (normalized.startsWith("ANULAD")) { // ANULADO / ANULADOS
+            return PaymentState.VOIDED;
+        }
         try {
             return PaymentState.valueOf(normalized);
-        } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("Estado inválido. Use UP_TO_DATE | EXPIRED | VOIDED");
+        } catch (Exception ex) {
+            return null; // desconocido -> ignorar
         }
     }
 }

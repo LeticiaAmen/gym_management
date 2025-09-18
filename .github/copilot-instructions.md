@@ -20,6 +20,7 @@ Configura la API como stateless (sin sesiones de servidor, solo JWT).
 
 Aplica principios SOLID.
 Evita hardcodear strings o valores mágicos (usa constantes).
+Añade comentarios explicativos para que cada clase y método sea fácil de entender por cualquier persona, no dudes en usar comentarios línea a línea si es necesario.
 
 Por favor, genera comentarios JavaDoc en las clases y métodos del proyecto siguiendo estas reglas:
 
