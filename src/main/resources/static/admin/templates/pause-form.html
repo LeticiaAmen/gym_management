@@ -1,38 +1,40 @@
 <!-- Formulario de Pausa -->
-<div class="modal-content modern-modal">
+<div class="modal-content modern-modal" role="dialog" aria-labelledby="pause-form-title" aria-modal="true">
     <div class="modal-header">
-        <h2>Pausar Suscripción</h2>
-        <button type="button" class="modal-close" onclick="closeModal('pause-modal')">×</button>
+        <h2 id="pause-form-title">Pausar Suscripción</h2>
+        <button type="button" class="modal-close" onclick="closeModal('pause-modal')" aria-label="Cerrar">×</button>
     </div>
 
     <div class="modal-body">
-        <div class="pause-info">
-            <div class="info-icon">⏸️</div>
+        <div class="pause-info" aria-live="polite">
+            <div class="info-icon" aria-hidden="true">⏸️</div>
             <p>Configura el período durante el cual la suscripción del cliente estará pausada. Durante este tiempo, no se generarán cobros.</p>
         </div>
 
         <div id="pause-form-error" class="form-error" aria-live="polite"></div>
 
-        <form id="pause-form" class="modern-form">
+        <form id="pause-form" class="modern-form" novalidate>
             <input type="hidden" id="pause-client-id" name="clientId">
 
             <div class="form-row">
                 <div class="form-group">
                     <label for="pauseFrom">Fecha de inicio <span class="required">*</span></label>
-                    <input type="date" id="pauseFrom" name="from" class="form-input" required>
+                    <input type="date" id="pauseFrom" name="from" class="form-input" required aria-describedby="pauseFromHelp" placeholder="YYYY-MM-DD">
+                    <small id="pauseFromHelp" class="form-hint">La pausa comenzará este día inclusive.</small>
                 </div>
                 <div class="form-group">
                     <label for="pauseTo">Fecha de fin <span class="required">*</span></label>
-                    <input type="date" id="pauseTo" name="to" class="form-input" required>
+                    <input type="date" id="pauseTo" name="to" class="form-input" required aria-describedby="pauseToHelp" placeholder="YYYY-MM-DD">
+                    <small id="pauseToHelp" class="form-hint">La pausa finalizará este día inclusive.</small>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="pauseReason">Motivo de la pausa</label>
-                <textarea id="pauseReason" name="reason" class="form-textarea" placeholder="Ej: Vacaciones, lesión, viaje de trabajo..."></textarea>
+                <textarea id="pauseReason" name="reason" class="form-textarea" placeholder="Ej: Vacaciones, lesión, viaje de trabajo..." aria-label="Motivo de la pausa (opcional)"></textarea>
             </div>
 
-            <div class="pause-summary">
+            <div class="pause-summary" aria-live="polite">
                 <h4>Resumen</h4>
                 <div class="summary-item">
                     <span class="label">Duración estimada:</span>
@@ -46,7 +48,7 @@
 
             <div class="form-actions">
                 <button type="submit" class="btn-warning-modern">
-                    <span class="btn-icon">⏸️</span>
+                    <span class="btn-icon" aria-hidden="true">⏸️</span>
                     Pausar Suscripción
                 </button>
                 <button type="button" class="btn-secondary-modern" onclick="closeModal('pause-modal')">

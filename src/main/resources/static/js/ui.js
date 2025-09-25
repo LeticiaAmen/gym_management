@@ -128,6 +128,7 @@ function logout() {
 
 // ===================== Clientes =====================
 async function loadClients(filters = null) {
+    const countEl = document.getElementById('clients-count');
     try {
         const url = new URL('/api/clients', window.location.origin);
         const hasFilters = !!(filters && Object.keys(filters).length);
@@ -140,16 +141,22 @@ async function loadClients(filters = null) {
         if (!response.ok) {
             const tbody = document.querySelector('#clients-table tbody');
             if (tbody) tbody.innerHTML = '<tr><td colspan="7">No se pudo cargar la lista de clientes.</td></tr>';
+            if (countEl) countEl.textContent = '--';
             return;
         }
         const clients = await response.json();
         clientsCache = Array.isArray(clients) ? clients : []; // actualizar caché
         const tbody = document.querySelector('#clients-table tbody');
-        if (!tbody) return;
-        if (!Array.isArray(clients) || clients.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7">${hasFilters ? 'Sin resultados para el filtro aplicado.' : 'No hay clientes registrados.'}</td></tr>`;
+        if (!tbody) {
+            if (countEl) countEl.textContent = String(clientsCache.length);
             return;
         }
+        if (!Array.isArray(clients) || clients.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7">${hasFilters ? 'Sin resultados para el filtro aplicado.' : 'No hay clientes registrados.'}</td></tr>`;
+            if (countEl) countEl.textContent = '0';
+            return;
+        }
+        if (countEl) countEl.textContent = String(clients.length);
         tbody.innerHTML = clients.map(client => {
             const start = client.startDate ? new Date(client.startDate).toLocaleDateString() : '-';
             const pauseBtn = isCurrentlyPaused(client)
@@ -178,6 +185,7 @@ async function loadClients(filters = null) {
         console.error('Error al cargar clientes:', error);
         const tbody = document.querySelector('#clients-table tbody');
         if (tbody) tbody.innerHTML = '<tr><td colspan="7">No se pudo cargar la lista de clientes.</td></tr>';
+        if (countEl) countEl.textContent = '--';
     }
 }
 
@@ -234,7 +242,7 @@ function clearClientFilters() {
     loadClients();
 }
 
-// Stubs de acciones de clientes (TODO: implementar)
+// Stubs de acciones de clientes
 async function showClientForm() {
     const modal = document.getElementById('client-modal');
     if (!modal) return;
@@ -494,16 +502,107 @@ function showPauseForm(clientId) {
 
         const form = modal.querySelector('#pause-form');
         const errEl = modal.querySelector('#pause-form-error');
+        const fromInput = modal.querySelector('#pauseFrom');
+        const toInput = modal.querySelector('#pauseTo');
+        const durationEl = modal.querySelector('#pause-duration');
         modal.querySelector('#pause-client-id').value = clientId;
 
+        // Helpers locales: parseo seguro YYYY-MM-DD y cálculo inclusivo en días
+        const parseYmdToUtc = (ymd) => {
+            if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+            const [y, m, d] = ymd.split('-').map(Number);
+            return new Date(Date.UTC(y, m - 1, d));
+        };
+        const formatDaysText = (days) => `${days} día${days === 1 ? '' : 's'}`;
+        const msPerDay = 24 * 60 * 60 * 1000;
+
+        function updateToMin() {
+            if (fromInput && toInput && fromInput.value) {
+                toInput.min = fromInput.value;
+            }
+        }
+
+        function updateSummaryAndValidation() {
+            if (errEl) errEl.textContent = '';
+            if (!fromInput || !toInput || !durationEl) return;
+            const from = parseYmdToUtc(fromInput.value);
+            const to = parseYmdToUtc(toInput.value);
+
+            // Validar presencia de fechas
+            if (!from || !to) {
+                durationEl.textContent = '-';
+                return;
+            }
+
+            // Validar rango correcto
+            if (to < from) {
+                durationEl.textContent = '-';
+                if (errEl) errEl.textContent = 'La fecha "Hasta" no puede ser anterior a "Desde"';
+                return;
+            }
+
+            // Calcular duración inclusiva en días evitando problemas de huso/DST
+            const diffDays = Math.floor((to.getTime() - from.getTime()) / msPerDay) + 1;
+            durationEl.textContent = formatDaysText(diffDays);
+        }
+
+        function prefillDefaults() {
+            if (!fromInput || !toInput) return;
+            const today = new Date();
+            const todayYmd = formatDateForInput(today);
+            // Por defecto: 1 semana (7 días inclusivos) => to = today + 6
+            const weekLater = new Date(today);
+            weekLater.setDate(weekLater.getDate() + 6);
+            const weekLaterYmd = formatDateForInput(weekLater);
+
+            // Limitar fechas mínimas para evitar pasado
+            fromInput.min = todayYmd;
+            if (!fromInput.value) fromInput.value = todayYmd;
+            updateToMin();
+            if (!toInput.value) toInput.value = weekLaterYmd;
+            updateSummaryAndValidation();
+        }
+
+        // Listeners de cambio para feedback inmediato
+        if (fromInput) {
+            fromInput.addEventListener('input', () => {
+                updateToMin();
+                // Si "hasta" quedó por debajo del nuevo "desde", ajústalo al mismo día
+                if (toInput && toInput.value && toInput.value < fromInput.value) {
+                    toInput.value = fromInput.value;
+                }
+                updateSummaryAndValidation();
+            });
+            fromInput.addEventListener('change', () => {
+                updateToMin();
+                updateSummaryAndValidation();
+            });
+        }
+        if (toInput) {
+            toInput.addEventListener('input', updateSummaryAndValidation);
+            toInput.addEventListener('change', updateSummaryAndValidation);
+        }
+
+        // Prefill y primer cálculo
+        prefillDefaults();
+
+        // Envío del formulario
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (errEl) errEl.textContent = '';
-            const from = form.querySelector('#pauseFrom').value;
-            const to = form.querySelector('#pauseTo').value;
+            const from = fromInput?.value;
+            const to = toInput?.value;
             const reason = form.querySelector('#pauseReason').value.trim();
-            if (!from || !to) { if (errEl) errEl.textContent = 'Debe completar fechas desde y hasta'; return; }
-            if (new Date(to) < new Date(from)) { if (errEl) errEl.textContent = 'La fecha "Hasta" no puede ser anterior a "Desde"'; return; }
+
+            if (!from || !to) {
+                if (errEl) errEl.textContent = 'Debe completar fechas desde y hasta';
+                return;
+            }
+            if (new Date(to) < new Date(from)) {
+                if (errEl) errEl.textContent = 'La fecha "Hasta" no puede ser anterior a "Desde"';
+                return;
+            }
+
             const btn = form.querySelector('button[type="submit"]');
             const prev = btn.textContent; btn.disabled = true; btn.textContent = 'Pausando…';
             try {
@@ -532,6 +631,7 @@ function showPauseForm(clientId) {
 // Reglas de ordenamiento secundarias: primero por paymentDate desc, luego por id desc para consistencia.
 // Protección ante respuestas no esperadas: intenta detectar si es Page (content) o lista directa.
 async function loadPayments(filters = {}) {
+    const countEl = document.getElementById('payments-count');
     try {
         // Si viene un arreglo de clientIds, hacemos múltiples requests y mergeamos
         if (Array.isArray(filters.clientIds) && filters.clientIds.length > 1) {
@@ -555,9 +655,13 @@ async function loadPayments(filters = {}) {
                 }
             }
             const tbody = document.querySelector('#payments-table tbody');
-            if (!tbody) return;
+            if (!tbody) {
+                if (countEl) countEl.textContent = String(items.length || 0);
+                return;
+            }
             if (items.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6">Sin resultados.</td></tr>';
+                if (countEl) countEl.textContent = '0';
                 return;
             }
             const sortedItems = items.slice().sort((a, b) => {
@@ -568,6 +672,7 @@ async function loadPayments(filters = {}) {
                 const idb = Number(b && b.id) || 0;
                 return idb - ida;
             });
+            if (countEl) countEl.textContent = String(items.length);
             tbody.innerHTML = sortedItems.map(payment => {
                 const amount = Number(payment.amount || 0).toFixed(2);
                 const dateStr = payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '-';
@@ -602,16 +707,27 @@ async function loadPayments(filters = {}) {
         if (!response.ok) {
             const tbody = document.querySelector('#payments-table tbody');
             if (tbody) tbody.innerHTML = '<tr><td colspan="6">No se pudo cargar pagos.</td></tr>';
+            if (countEl) countEl.textContent = '--';
             return;
         }
         const pageOrList = await response.json();
         const tbody = document.querySelector('#payments-table tbody');
-        if (!tbody) return;
+        if (!tbody) {
+            const totalCount = Array.isArray(pageOrList)
+                ? pageOrList.length
+                : (Number.isFinite(pageOrList?.totalElements) ? pageOrList.totalElements : (Array.isArray(pageOrList?.content) ? pageOrList.content.length : 0));
+            if (countEl) countEl.textContent = String(totalCount);
+            return;
+        }
         const items = Array.isArray(pageOrList)
             ? pageOrList
             : Array.isArray(pageOrList.content) ? pageOrList.content : [];
+        const totalCount = Array.isArray(pageOrList)
+            ? pageOrList.length
+            : (Number.isFinite(pageOrList?.totalElements) ? pageOrList.totalElements : items.length);
         if (items.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6">Sin resultados.</td></tr>';
+            if (countEl) countEl.textContent = String(totalCount || 0);
             return;
         }
         // Ordenar: primero por fecha de pago descendente, y si falta/empata, por id descendente
@@ -623,6 +739,7 @@ async function loadPayments(filters = {}) {
             const idb = Number(b && b.id) || 0;
             return idb - ida; // id más alto primero
         });
+        if (countEl) countEl.textContent = String(totalCount);
         tbody.innerHTML = sortedItems.map(payment => {
             const amount = Number(payment.amount || 0).toFixed(2);
             const dateStr = payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '-';
@@ -650,6 +767,8 @@ async function loadPayments(filters = {}) {
         }).join('');
     } catch (error) {
         console.error('Error al cargar pagos:', error);
+        const countEl2 = document.getElementById('payments-count');
+        if (countEl2) countEl2.textContent = '--';
     }
 }
 
@@ -691,6 +810,8 @@ function filterPayments() {
     if (q && ids.length === 0) {
         const tbody = document.querySelector('#payments-table tbody');
         if (tbody) tbody.innerHTML = '<tr><td colspan="6">Sin resultados.</td></tr>';
+        const countEl = document.getElementById('payments-count');
+        if (countEl) countEl.textContent = '0';
         return;
     }
     const filters = {};
@@ -1075,6 +1196,10 @@ function showConfirmation({ title, message, icon = 'warning', confirmText = 'Con
         const iconEl = document.getElementById('confirmation-icon');
         const confirmBtn = document.getElementById('confirmation-confirm');
         const cancelBtn = document.getElementById('confirmation-cancel');
+        const dialog = modal.querySelector('.confirmation-content');
+
+        // Guardar el elemento con foco para restaurarlo al cerrar
+        const previouslyFocused = document.activeElement;
 
         // Configurar contenido
         titleEl.textContent = title;
@@ -1096,23 +1221,63 @@ function showConfirmation({ title, message, icon = 'warning', confirmText = 'Con
         modal.classList.add('show');
         document.body.style.overflow = 'hidden';
 
-        // Handlers
+        // Establecer foco inicial amigable
+        // Para acciones peligrosas, enfocamos "Cancelar" por defecto.
+        // Para acciones informativas/primarias, enfocamos "Confirmar".
+        const initialFocusEl = (type === 'danger') ? cancelBtn : confirmBtn;
+        // Mover foco al diálogo primero para lectores de pantalla, luego al botón inicial
+        if (dialog) dialog.focus();
+        setTimeout(() => initialFocusEl?.focus(), 0);
+
+        // Focus trap dentro del modal (Tab y Shift+Tab ciclan)
+        const focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+        const getFocusable = () => Array.from(dialog.querySelectorAll(focusableSelectors))
+            .filter(el => !el.hasAttribute('disabled') && el.offsetParent !== null);
+
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+                handleCancel();
+                return;
+            }
+            if (e.key === 'Enter') {
+                // Evitar submit implícito inesperado si hay formularios embebidos (no es el caso aquí)
+                e.preventDefault();
+                handleConfirm();
+                return;
+            }
+            if (e.key === 'Tab') {
+                const focusable = getFocusable();
+                if (focusable.length === 0) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey) {
+                    if (document.activeElement === first || document.activeElement === dialog) {
+                        e.preventDefault();
+                        last.focus();
+                    }
+                } else {
+                    if (document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                }
+            }
+        };
+
         const handleConfirm = () => {
             hideConfirmation();
+            if (previouslyFocused && previouslyFocused.focus) {
+                setTimeout(() => previouslyFocused.focus(), 0);
+            }
             resolve(true);
         };
 
         const handleCancel = () => {
             hideConfirmation();
-            resolve(false);
-        };
-
-        const handleKeydown = (e) => {
-            if (e.key === 'Escape') {
-                handleCancel();
-            } else if (e.key === 'Enter') {
-                handleConfirm();
+            if (previouslyFocused && previouslyFocused.focus) {
+                setTimeout(() => previouslyFocused.focus(), 0);
             }
+            resolve(false);
         };
 
         // Limpiar listeners anteriores
@@ -1128,11 +1293,12 @@ function showConfirmation({ title, message, icon = 'warning', confirmText = 'Con
         modal.addEventListener('click', (e) => {
             if (e.target === modal) handleCancel();
         });
-        document.addEventListener('keydown', handleKeydown);
+        // Escuchar eventos de teclado en el documento para capturar Escape y Tab
+        document.addEventListener('keydown', handleKeydown, true);
 
         // Limpiar al cerrar
         modal._cleanup = () => {
-            document.removeEventListener('keydown', handleKeydown);
+            document.removeEventListener('keydown', handleKeydown, true);
         };
     });
 }

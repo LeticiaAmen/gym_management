@@ -10,7 +10,7 @@
 <body class="with-navbar">
   <!-- Navbar Moderno -->
   <nav class="navbar">
-    <a href="/admin/dashboard.html" class="navbar-brand">GYM BOX</a>
+    <a href="/admin/dashboard.html" class="navbar-brand">GYM</a>
 
     <ul class="navbar-nav">
       <li><a href="#" data-section="dashboard" class="active">Panel</a></li>
@@ -29,34 +29,7 @@
     <section id="dashboard-section" class="section">
       <div class="dashboard-header">
         <h1>¡Bienvenido de nuevo!</h1>
-        <p class="dashboard-subtitle">Esto es lo que está pasando en GYM BOX hoy.</p>
-      </div>
-
-      <!-- Tarjetas de estadísticas -->
-      <div class="stats-grid">
-        <div class="stat-card active-clients">
-          <div class="stat-content">
-            <div class="stat-info">
-              <h3>Clientes activos</h3>
-              <span class="stat-number" id="active-clients-count">--</span>
-            </div>
-            <div class="stat-icon">
-              <i class="icon-users">👥</i>
-            </div>
-          </div>
-        </div>
-
-        <div class="stat-card pending-payments">
-          <div class="stat-content">
-            <div class="stat-info">
-              <h3>Pagos pendientes</h3>
-              <span class="stat-number" id="pending-payments-count">--</span>
-            </div>
-            <div class="stat-icon">
-              <i class="icon-warning">⚠️</i>
-            </div>
-          </div>
-        </div>
+        <p class="dashboard-subtitle">Esto es lo que está pasando en GYM hoy.</p>
       </div>
 
       <!-- Actividad reciente -->
@@ -173,6 +146,10 @@
         <button id="btn-clear-payments" onclick="clearPaymentFilters()" class="btn-clear-payments" title="Limpiar filtros">Limpiar</button>
         <p class="filters-hint">Consejo: todos los filtros son opcionales. Usa "Desde/Hasta" para acotar por fecha de pago.</p>
       </div>
+      <!-- Encabezado con contador de pagos -->
+      <div class="table-header">
+        <h3>Pagos encontrados (<span id="payments-count">--</span>)</h3>
+      </div>
       <div class="modern-table-wrapper">
         <table id="payments-table" class="modern-table">
           <thead>
@@ -258,7 +235,7 @@
 
   <!-- Modal de confirmación -->
   <div id="confirmation-modal" class="confirmation-modal">
-    <div class="confirmation-content">
+    <div class="confirmation-content" role="dialog" aria-modal="true" aria-labelledby="confirmation-title" aria-describedby="confirmation-message" tabindex="-1">
       <div class="confirmation-header">
         <div id="confirmation-icon" class="confirmation-icon warning">
           ⚠️
@@ -269,8 +246,8 @@
         ¿Estás seguro de que quieres realizar esta acción?
       </p>
       <div class="confirmation-actions">
-        <button id="confirmation-cancel" class="btn-cancel">Cancelar</button>
-        <button id="confirmation-confirm" class="btn-confirm">Confirmar</button>
+        <button id="confirmation-cancel" class="btn-cancel" aria-label="Cancelar">Cancelar</button>
+        <button id="confirmation-confirm" class="btn-confirm" aria-label="Confirmar">Confirmar</button>
       </div>
     </div>
   </div>

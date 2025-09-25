@@ -12,6 +12,11 @@ body {
 
 body.login-bg {
     background: #0f1419;
+    /* Garantiza centrado vertical/original del login */
+    display: grid;
+    place-items: center;
+    min-height: 100svh;
+    padding: 0 16px;
 }
 
 .card {
@@ -25,6 +30,10 @@ body.login-bg {
 .login-card {
     background: #1a1d29;
     border: 1px solid #2a2f42;
+    width: min(480px, 94vw);
+    padding: 2.25rem 2rem;
+    border-radius: 12px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
 }
 
 .login-header {
@@ -37,6 +46,8 @@ body.login-bg {
     font-size: 2rem;
     margin-bottom: 0.5rem;
     font-weight: bold;
+    font-size: 2.25rem;
+    letter-spacing: 0.2px;
 }
 
 .login-header h2.subtitle {
@@ -44,6 +55,8 @@ body.login-bg {
     font-size: 1rem;
     margin: 0;
     font-weight: normal;
+    font-size: 1rem;
+    color: #9aa4c3;
 }
 
 .logo {
@@ -75,6 +88,23 @@ input:focus {
     box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2);
 }
 
+body.login-bg .login-form input[type="email"],
+body.login-bg .login-form input[type="password"] {
+    background: #2a2f42;
+    border: 1px solid #3a3f54;
+    color: #ffffff;
+    border-radius: 10px;
+}
+body.login-bg .login-form input[type="email"]::placeholder,
+body.login-bg .login-form input[type="password"]::placeholder {
+    color: #9aa4c3;
+}
+body.login-bg .login-form input[type="email"]:focus,
+body.login-bg .login-form input[type="password"]:focus {
+    border-color: #ff6b35;
+    box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.18);
+}
+
 button, .btn-primary {
     background: linear-gradient(135deg, #ff6b35, #f7931e);
     color: white;
@@ -93,30 +123,50 @@ button:hover, .btn-primary:hover {
     box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4);
 }
 
-.error {
-    color: #ef4444;
-    min-height: 1.2rem;
-    text-align: center;
-    margin-top: 1rem;
+body.login-bg .login-form button.btn-primary,
+body.login-bg .login-form button[type="submit"],
+body.login-bg .login-form button {
+    height: 48px;
+    border-radius: 10px;
 }
 
-.login-form {
+/* Afinado de alineación (solo login) */
+body.login-bg .login-form { align-items: stretch; }
+body.login-bg .login-form input,
+body.login-bg .login-form button {
+    display: block;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+}
+body.login-bg .login-card { box-sizing: border-box; }
+
+/* Layout seguro del formulario (solo login) */
+body.login-bg .login-form {
     display: flex;
     flex-direction: column;
-    align-items: center;
-}
-
-.form-group {
+    gap: 14px;
     width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    margin: 0;
+}
+body.login-bg .login-form .form-group {
+    margin: 0; /* evita márgenes inesperados del contenedor */
+    padding: 0;
+    width: 100%;
+}
+/* Asegura ancho completo y cálculo con borde incluido */
+body.login-bg .login-form input,
+body.login-bg .login-form button {
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.login-form input {
-    width: 80%;
-    margin-left: auto;
-    margin-right: auto;
+/* Visibilidad de foco accesible para teclado */
+.btn-confirm:focus-visible,
+.btn-cancel:focus-visible {
+    outline: 2px solid #93c5fd; /* azul claro visible */
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25);
 }
 
 /* Modal de confirmación amigable */
@@ -149,6 +199,12 @@ button:hover, .btn-primary:hover {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     border: 1px solid #2a2f42;
     animation: scaleIn 0.3s ease;
+}
+
+/* Resaltar foco del contenedor para lectores de pantalla al abrir */
+.confirmation-content:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.25);
+    outline-offset: 3px;
 }
 
 .confirmation-header {
@@ -243,6 +299,14 @@ button:hover, .btn-primary:hover {
     box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
 }
 
+/* Mensaje de error en login */
+body.login-bg #error {
+    color: #fca5a5;
+    min-height: 1.25rem;
+    text-align: center;
+    margin-top: .5rem;
+}
+
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -256,5 +320,14 @@ button:hover, .btn-primary:hover {
     to {
         transform: scale(1);
         opacity: 1;
+    }
+}
+
+/* Respeta la preferencia de "reducir movimiento" del sistema */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
     }
 }
