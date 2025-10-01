@@ -4,7 +4,7 @@ import java.time.LocalDate;
 
 /**
  * Representa un cliente cuyo último pago válido vence en los próximos 7 días.
- * Incluye información mínima y la fecha de expiración para mostrar en reportes.
+ * Incluye información mínima, la fecha de expiración y si se le envió recordatorio.
  */
 public class ExpiringClientDTO {
     private Long id;
@@ -13,6 +13,7 @@ public class ExpiringClientDTO {
     private String email;
     private boolean active;
     private LocalDate expirationDate;
+    private boolean reminderSent; // indica si se envió recordatorio de vencimiento
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -26,5 +27,6 @@ public class ExpiringClientDTO {
     public void setActive(boolean active) { this.active = active; }
     public LocalDate getExpirationDate() { return expirationDate; }
     public void setExpirationDate(LocalDate expirationDate) { this.expirationDate = expirationDate; }
+    public boolean isReminderSent() { return reminderSent; }
+    public void setReminderSent(boolean reminderSent) { this.reminderSent = reminderSent; }
 }
-

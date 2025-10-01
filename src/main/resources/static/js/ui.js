@@ -1146,6 +1146,8 @@ function showReportResults(title, data) {
 
     // ¿Este reporte trae fecha de expiración?
     const hasExpiration = !empty && Object.prototype.hasOwnProperty.call(rows[0], 'expirationDate');
+    // ¿Este reporte trae información de recordatorio enviado?
+    const hasReminder = !empty && Object.prototype.hasOwnProperty.call(rows[0], 'reminderSent');
 
     const tableHtml = empty
         ? `<div class="clients-table-container"><div class="table-header"><h3>${title}</h3></div><div class="modern-table-wrapper"><div style="padding:1rem;color:#8b9dc3;">Sin clientes para mostrar.</div></div></div>`
@@ -1158,18 +1160,24 @@ function showReportResults(title, data) {
                      <th>Cliente</th>
                      <th>Email</th>
                      ${hasExpiration ? '<th>Fecha de expiración</th>' : '<th>Estado</th>'}
+                     ${hasReminder ? '<th>Recordatorio enviado</th>' : ''}
                    </tr>
                  </thead>
                  <tbody>
                    ${rows.map(client => {
                         const name = `${(client.firstName||'')} ${(client.lastName||'')}`.trim();
                         const email = client.email || '';
+                        const reminderCell = hasReminder 
+                            ? `<td class="reminder-cell" style="text-align: center;">${client.reminderSent ? '✅' : '❌'}</td>`
+                            : '';
+                        
                         if (hasExpiration) {
                             const exp = fmtYmd(client.expirationDate);
                             return `<tr>
                                       <td class="name-cell">${name}</td>
                                       <td class="email-cell">${email}</td>
                                       <td class="date-cell">${exp}</td>
+                                      ${reminderCell}
                                     </tr>`;
                         }
                         const active = client.active ? 'Activo' : 'Inactivo';
@@ -1178,6 +1186,7 @@ function showReportResults(title, data) {
                                   <td class="name-cell">${name}</td>
                                   <td class="email-cell">${email}</td>
                                   <td><span class="status-badge ${badgeCls}">${active}</span></td>
+                                  ${reminderCell}
                                 </tr>`;
                    }).join('')}
                  </tbody>

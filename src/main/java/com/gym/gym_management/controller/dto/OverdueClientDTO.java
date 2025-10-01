@@ -4,7 +4,7 @@ import java.time.LocalDate;
 
 /**
  * Cliente con información mínima para reportes de vencidos, incluyendo la fecha
- * de expiración de su último pago válido (no anulado).
+ * de expiración de su último pago válido (no anulado) y si se le envió recordatorio.
  */
 public class OverdueClientDTO {
     private Long id;
@@ -13,6 +13,7 @@ public class OverdueClientDTO {
     private String email;
     private boolean active;
     private LocalDate expirationDate; // fecha de vencimiento del último pago válido
+    private boolean reminderSent; // indica si se envió recordatorio de vencimiento
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -31,5 +32,7 @@ public class OverdueClientDTO {
 
     public LocalDate getExpirationDate() { return expirationDate; }
     public void setExpirationDate(LocalDate expirationDate) { this.expirationDate = expirationDate; }
-}
 
+    public boolean isReminderSent() { return reminderSent; }
+    public void setReminderSent(boolean reminderSent) { this.reminderSent = reminderSent; }
+}
