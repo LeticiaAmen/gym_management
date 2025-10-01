@@ -62,6 +62,9 @@ public class SecurityConfiguration {
                         .requestMatchers("/", "/index.html", "/favicon.ico",
                                 "/css/**", "/js/**", "/img/**", "/assets/**").permitAll()
 
+                        // Páginas de recuperación de contraseña (públicas)
+                        .requestMatchers("/forgot-password.html", "/reset-password.html").permitAll()
+
                         // Permitir manejador de errores
                         .requestMatchers("/error").permitAll()
 
@@ -70,6 +73,11 @@ public class SecurityConfiguration {
 
                         // Auth pública
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+
+                        // API de recuperación de contraseña (pública)
+                        .requestMatchers(HttpMethod.POST, "/api/password/request-reset").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/password/validate-token/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/password/confirm-reset").permitAll()
 
                         // API protegida
                         .requestMatchers("/api/clients/**").hasRole("ADMIN")

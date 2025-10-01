@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
  * Funciones principales:
  * - Registrar nuevos usuarios con validaciones y cifrado de contraseña.
  * - Consultar todos los usuarios registrados.
+ * - Filtrar usuarios por rol ADMIN.
  *
  * Relación con los requerimientos:
  * - "Usuarios y Roles": este servicio permite registrar usuarios con roles específicos
@@ -87,11 +88,60 @@ public class UserService {
         return userRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    /**
+     * Obtiene todos los usuarios con rol ADMIN del sistema.
+     * <p>
+     * Este método filtra la lista completa de usuarios para devolver solo aquellos
+     * que tienen el rol ADMIN, transformándolos a DTOs para evitar exponer
+     * información sensible como contraseñas.
+     *
+     * @return lista de administradores en formato DTO
+     */
+    public List<UserDTO> findAllAdmins() {
+        return userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.ADMIN)
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
     private UserDTO toDTO(User user) {
         UserDTO dto = new UserDTO();
         dto.setId(user.getId());
         dto.setEmail(user.getEmail());
         dto.setRole(user.getRole());
         return dto;
+    }
+
+    /**
+     * Cambia la contraseña de un usuario administrador.
+     * <p>
+     * Este método valida que la contraseña actual sea correcta antes de realizar el cambio,
+     * y comprueba que las nuevas contraseñas coincidan.
+     *
+     * @param email correo electrónico del usuario
+     * @param currentPassword contraseña actual para validación
+     * @param newPassword nueva contraseña a establecer
+     * @param confirmPassword confirmación de la nueva contraseña
+     * @throws IllegalArgumentException si las contraseñas no coinciden o la contraseña actual es incorrecta
+     * @throws RuntimeException si el usuario no existe
+     */
+    public void changePassword(String email, String currentPassword, String newPassword, String confirmPassword) {
+        // Verificar que las nuevas contraseñas coincidan
+        if (!newPassword.equals(confirmPassword)) {
+            throw new IllegalArgumentException("Las contraseñas no coinciden");
+        }
+
+        // Buscar el usuario por email
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        // Verificar que la contraseña actual sea correcta
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new IllegalArgumentException("La contraseña actual es incorrecta");
+        }
+
+        // Cambiar la contraseña
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }

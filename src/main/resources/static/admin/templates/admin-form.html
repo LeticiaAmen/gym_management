@@ -1,0 +1,59 @@
+<!--
+Formulario para registro de nuevos administradores
+Este template contiene el formulario para que un administrador pueda registrar
+a otro administrador en el sistema.
+-->
+
+<div class="modal-content modern-modal">
+  <div class="modal-header">
+    <h2>Registrar nuevo administrador</h2>
+    <button type="button" class="modal-close" onclick="closeModal('admin-modal')">×</button>
+  </div>
+  <div class="modal-body">
+    <!-- Mensaje de feedback visible -->
+    <div id="admin-form-feedback" class="form-error" aria-live="polite"></div>
+
+    <!-- Formulario de registro con validación -->
+    <form id="admin-register-form" class="modern-form">
+      <div class="form-group">
+        <label for="admin-email">Correo electrónico <span class="required">*</span></label>
+        <input type="email" id="admin-email" name="email" required
+               class="form-input" placeholder="ejemplo@correo.com">
+        <span class="error-message" id="email-error"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="admin-password">Contraseña <span class="required">*</span></label>
+        <input type="password" id="admin-password" name="password" required
+               class="form-input"
+               pattern="^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).{8,}$">
+        <div class="password-requirements">
+          <small>La contraseña debe tener al menos:</small>
+          <ul>
+            <li id="length-check">8 caracteres</li>
+            <li id="uppercase-check">Una letra mayúscula</li>
+            <li id="lowercase-check">Una letra minúscula</li>
+            <li id="number-check">Un número</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="admin-confirm-password">Confirmar contraseña <span class="required">*</span></label>
+        <input type="password" id="admin-confirm-password" name="confirmPassword" required
+               class="form-input">
+        <span class="error-message" id="confirm-password-error"></span>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary-modern">
+          <span class="btn-icon">💾</span>
+          Registrar administrador
+        </button>
+        <button type="button" class="btn-secondary-modern" onclick="closeModal('admin-modal')">
+          Cancelar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

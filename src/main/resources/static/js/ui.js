@@ -5,7 +5,7 @@
  * como apiFetch, manteniendo el código más organizado y seguro.
  * Los scripts clásicos no permiten imports y pueden causar errores de dependencias.
  */
-import { apiFetch } from './api.js';
+import { apiFetch, registerAdmin, getAdmins } from './api.js';
 
 /* ============================================================================
  * UI / Frontend Admin Panel
@@ -19,6 +19,7 @@ import { apiFetch } from './api.js';
  *  4. Reportes (consultas de datos agregados y tablas dinámicas).
  *  5. Dashboard (estadísticas rápidas + actividades recientes).
  *  6. Infraestructura UI (confirmaciones modales, navegación de secciones, delegación de eventos).
+ *  7. Gestión de administradores (listado, formulario de registro).
  *
  * Principios usados:
  *  - Separar responsabilidades por función (cada función hace 1 cosa clara).
@@ -119,6 +120,9 @@ function showSection(sectionId, skipAuto = false) {
     if (sectionId === 'reports') {
         loadReportSummary();
     }
+    if (sectionId == 'admins'){
+        loadAdmins(); //Cargar la lista de administradores
+    }
 }
 
 function logout() {
@@ -209,7 +213,7 @@ function getClientFiltersFromDOM() {
         } // 'TODOS' u otros => no se envía
     }
 
-    // ----- Payment -----
+    //  --- Payment -----
     if (paymentRaw) {
         const normP = normalize(paymentRaw).replace(/PAGO:?\s*/,''); // quita prefijo 'PAGO: '
         if (['TODOS','ALL',''].includes(normP)) {
@@ -1483,22 +1487,343 @@ window.clearPaymentFilters = clearPaymentFilters;
 window.viewClientPayments = viewClientPayments;
 window.voidPayment = voidPayment;
 
+// Exponer la función loadAdmins a nivel global para que pueda ser usada por otros scripts
+window.loadAdmins = loadAdmins;
+
 // exponer cargadores del dashboard para que navbar.js delegue correctamente
 window.loadDashboardStats = loadDashboardStats;
 window.loadRecentActivities = loadRecentActivities;
 window.loadReportSummary = loadReportSummary;
 
-// Helper: resuelve múltiples clientIds a partir de un texto (id directo, nombre o email)
-function resolveClientIdsFromQuery(q) {
-    if (!q) return [];
-    const m = q.match(/^\d+/);
-    if (m) return [Number(m[0])];
-    const needle = q.toLowerCase();
-    return (clientsCache || [])
-        .filter(c => {
-            const name = `${c.firstName || ''} ${c.lastName || ''}`.trim().toLowerCase();
-            const email = (c.email || '').toLowerCase();
-            return name.includes(needle) || email.includes(needle);
-        })
-        .map(c => Number(c.id));
+/* ============================================================================
+ * Administradores - Gestión de usuarios administradores
+ * ============================================================================ */
+
+/**
+ * Carga la lista de administradores desde el servidor y la muestra en la tabla
+ */
+async function loadAdmins() {
+  const countEl = document.getElementById('admins-count');
+  const tbody = document.querySelector('#admins-table tbody');
+
+  if (!tbody) {
+    console.error('No se encontró la tabla de administradores');
+    return;
+  }
+
+  try {
+    // Mostrar indicador de carga
+    tbody.innerHTML = '<tr><td colspan="4">Cargando administradores...</td></tr>';
+    if (countEl) countEl.textContent = '--';
+
+    // Obtener los administradores desde el servidor
+    const admins = await getAdmins();
+
+    // Actualizar el contador
+    if (countEl) countEl.textContent = String(admins.length);
+
+    // Si no hay administradores
+    if (!admins || admins.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4">No hay administradores registrados.</td></tr>';
+      return;
+    }
+
+    // Mostrar los administradores en la tabla con el formato actualizado
+    tbody.innerHTML = admins.map(admin => {
+      // Obtener el ID del usuario actual del localStorage
+      const currentUserEmail = JSON.parse(localStorage.getItem('currentUser') || '{}').email;
+      const isCurrentUser = currentUserEmail === admin.email;
+
+      return `
+      <tr>
+        <td>${admin.email || ''}</td>
+        <td>${admin.role || 'ADMIN'}</td>
+        <td>ID: ${admin.id}</td>
+        <td class="actions-cell">
+          ${isCurrentUser ? 
+            `<button type="button" class="action-btn change-password" onclick="showChangePasswordForm()" title="Cambiar contraseña">🔑</button>` : 
+            `<button type="button" class="action-btn view-details" title="Ver detalles">👁️</button>`
+          }
+        </td>
+      </tr>`;
+    }).join('');
+
+  } catch (error) {
+    console.error('Error al cargar administradores:', error);
+    tbody.innerHTML = '<tr><td colspan="4">Error al cargar la lista de administradores.</td></tr>';
+    if (countEl) countEl.textContent = '--';
+  }
+}
+
+/**
+ * Muestra el formulario modal para registrar un nuevo administrador
+ */
+window.showAdminForm = function() {
+  // Cargar el template del formulario desde el servidor
+  fetch('/admin/templates/admin-form.html')
+    .then(response => response.text())
+    .then(html => {
+      // Insertar el HTML en el modal
+      const modal = document.getElementById('admin-modal');
+      modal.innerHTML = html;
+
+      // Mostrar el modal
+      modal.style.display = 'flex';
+
+      // Configurar el formulario
+      setupAdminForm();
+    })
+    .catch(error => {
+      console.error('Error cargando el formulario de administrador:', error);
+      alert('No se pudo cargar el formulario. Por favor, inténtelo de nuevo.');
+    });
+};
+
+/**
+ * Configura los eventos y validaciones del formulario de administrador
+ */
+function setupAdminForm() {
+  const form = document.getElementById('admin-register-form');
+  const passwordInput = document.getElementById('admin-password');
+  const confirmInput = document.getElementById('admin-confirm-password');
+  const emailInput = document.getElementById('admin-email');
+  const feedbackElement = document.getElementById('admin-form-feedback');
+
+  // Configurar validación en tiempo real para la contraseña
+  passwordInput.addEventListener('input', validatePassword);
+
+  // Configurar validación para la confirmación de contraseña
+  confirmInput.addEventListener('input', function() {
+    const confirmError = document.getElementById('confirm-password-error');
+    if (passwordInput.value !== confirmInput.value) {
+      confirmError.textContent = 'Las contraseñas no coinciden';
+    } else {
+      confirmError.textContent = '';
+    }
+  });
+
+  // Configurar envío del formulario
+  form.addEventListener('submit', async function(event) {
+    event.preventDefault();
+
+    // Limpiar mensajes de feedback anteriores
+    feedbackElement.textContent = '';
+    feedbackElement.className = '';
+
+    // Validar que las contraseñas coincidan
+    if (passwordInput.value !== confirmInput.value) {
+      feedbackElement.textContent = 'Las contraseñas no coinciden';
+      feedbackElement.className = 'form-feedback error';
+      return;
+    }
+
+    // Preparar los datos a enviar
+    const adminData = {
+      email: emailInput.value,
+      password: passwordInput.value,
+      confirmPassword: confirmInput.value
+    };
+
+    try {
+      // Deshabilitar el botón de envío para evitar múltiples submits
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Registrando...';
+
+      // Enviar los datos al servidor
+      const response = await registerAdmin(adminData);
+
+      if (response.ok) {
+        // Éxito - mostrar mensaje y cerrar el modal después de un momento
+        feedbackElement.textContent = 'Administrador registrado exitosamente';
+        feedbackElement.className = 'form-feedback success';
+
+        // Mostrar mensaje durante 2 segundos antes de cerrar
+        setTimeout(() => {
+          closeModal('admin-modal');
+          // Recargar lista de administradores
+          loadAdmins();
+          // Mostrar mensaje de confirmación en ventana
+          alert('Administrador registrado exitosamente');
+        }, 1500);
+      } else {
+        // Error - mostrar mensaje del servidor
+        const errorText = await response.text();
+        feedbackElement.textContent = `Error: ${errorText}`;
+        feedbackElement.className = 'form-feedback error';
+        submitButton.disabled = false;
+        submitButton.textContent = 'Registrar administrador';
+      }
+    } catch (error) {
+      // Error en la petición
+      console.error('Error registrando administrador:', error);
+      feedbackElement.textContent = `Error: ${error.message || 'No se pudo completar el registro'}`;
+      feedbackElement.className = 'form-feedback error';
+
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = false;
+      submitButton.textContent = 'Registrar administrador';
+    }
+  });
+}
+
+/**
+ * Valida la contraseña en tiempo real y actualiza los indicadores visuales
+ */
+function validatePassword() {
+  const password = document.getElementById('admin-password').value;
+
+  // Validar requisitos de la contraseña
+  const hasLength = password.length >= 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+
+  // Actualizar indicadores visuales
+  document.getElementById('length-check').className = hasLength ? 'valid' : '';
+  document.getElementById('uppercase-check').className = hasUpperCase ? 'valid' : '';
+  document.getElementById('lowercase-check').className = hasLowerCase ? 'valid' : '';
+  document.getElementById('number-check').className = hasNumber ? 'valid' : '';
+}
+
+/* ============================================================================
+ * Administradores - Gestión de cambio de contraseña
+ * ============================================================================ */
+
+/**
+ * Muestra el formulario modal para cambiar la contraseña del administrador actual
+ */
+window.showChangePasswordForm = function() {
+  // Cargar el template del formulario desde el servidor
+  fetch('/admin/templates/change-password-form.html')
+    .then(response => response.text())
+    .then(html => {
+      // Insertar el HTML en el modal
+      const modal = document.getElementById('password-modal');
+      if (!modal) {
+        // Si no existe el modal en el HTML, creamos uno
+        const newModal = document.createElement('div');
+        newModal.id = 'password-modal';
+        newModal.className = 'modal';
+        document.body.appendChild(newModal);
+        return showChangePasswordForm(); // Llamamos de nuevo a la función
+      }
+
+      modal.innerHTML = html;
+
+      // Mostrar el modal
+      modal.style.display = 'flex';
+
+      // Configurar el formulario
+      setupChangePasswordForm();
+    })
+    .catch(error => {
+      console.error('Error cargando el formulario de cambio de contraseña:', error);
+      alert('No se pudo cargar el formulario. Por favor, inténtelo de nuevo.');
+    });
+};
+
+/**
+ * Configura los eventos y validaciones del formulario de cambio de contraseña
+ */
+function setupChangePasswordForm() {
+  const form = document.getElementById('change-password-form');
+  const newPasswordInput = document.getElementById('new-password');
+  const confirmInput = document.getElementById('confirm-new-password');
+  const currentPasswordInput = document.getElementById('current-password');
+  const feedbackElement = document.getElementById('password-form-feedback');
+
+  // Configurar validación en tiempo real para la nueva contraseña
+  newPasswordInput.addEventListener('input', validateNewPassword);
+
+  // Configurar validación para la confirmación de contraseña
+  confirmInput.addEventListener('input', function() {
+    const confirmError = document.getElementById('confirm-password-error');
+    if (newPasswordInput.value !== confirmInput.value) {
+      confirmError.textContent = 'Las contraseñas no coinciden';
+    } else {
+      confirmError.textContent = '';
+    }
+  });
+
+  // Configurar envío del formulario
+  form.addEventListener('submit', async function(event) {
+    event.preventDefault();
+
+    // Limpiar mensajes de feedback anteriores
+    feedbackElement.textContent = '';
+    feedbackElement.className = '';
+
+    // Validar que las contraseñas coincidan
+    if (newPasswordInput.value !== confirmInput.value) {
+      feedbackElement.textContent = 'Las nuevas contraseñas no coinciden';
+      feedbackElement.className = 'form-feedback error';
+      return;
+    }
+
+    // Preparar los datos a enviar
+    const passwordData = {
+      currentPassword: currentPasswordInput.value,
+      newPassword: newPasswordInput.value,
+      confirmPassword: confirmInput.value
+    };
+
+    try {
+      // Deshabilitar el botón de envío para evitar múltiples submits
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Cambiando...';
+
+      // Enviar los datos al servidor
+      const response = await changePassword(passwordData);
+
+      if (response.ok) {
+        // Éxito - mostrar mensaje y cerrar el modal después de un momento
+        feedbackElement.textContent = 'Contraseña cambiada exitosamente';
+        feedbackElement.className = 'form-feedback success';
+
+        // Mostrar mensaje durante 2 segundos antes de cerrar
+        setTimeout(() => {
+          closeModal('password-modal');
+          // Mostrar mensaje de confirmación en ventana
+          alert('Contraseña cambiada exitosamente');
+        }, 1500);
+      } else {
+        // Error - mostrar mensaje del servidor
+        const errorText = await response.text();
+        feedbackElement.textContent = `Error: ${errorText}`;
+        feedbackElement.className = 'form-feedback error';
+        submitButton.disabled = false;
+        submitButton.textContent = 'Cambiar contraseña';
+      }
+    } catch (error) {
+      // Error en la petición
+      console.error('Error cambiando contraseña:', error);
+      feedbackElement.textContent = `Error: ${error.message || 'No se pudo completar el cambio de contraseña'}`;
+      feedbackElement.className = 'form-feedback error';
+
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = false;
+      submitButton.textContent = 'Cambiar contraseña';
+    }
+  });
+}
+
+/**
+ * Valida la nueva contraseña en tiempo real y actualiza los indicadores visuales
+ */
+function validateNewPassword() {
+  const password = document.getElementById('new-password').value;
+
+  // Validar requisitos de la contraseña
+  const hasLength = password.length >= 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+
+  // Actualizar indicadores visuales
+  document.getElementById('pw-length-check').className = hasLength ? 'valid' : '';
+  document.getElementById('pw-uppercase-check').className = hasUpperCase ? 'valid' : '';
+  document.getElementById('pw-lowercase-check').className = hasLowerCase ? 'valid' : '';
+  document.getElementById('pw-number-check').className = hasNumber ? 'valid' : '';
 }

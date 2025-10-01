@@ -14,13 +14,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
+
 /**
  * Controlador REST encargado de manejar las operaciones de autenticación y registro de usuarios.
  * Expone endpoints REST para iniciar sesión (login) y registrar nuevos usuarios.
  *
  * Funcionalidad:
- * - /auth/register → Registro de nuevos usuarios (solo accesible para administradores o rol USER).
  * - /auth/login → Autenticación de usuarios y generación de token JWT.
+ * - /auth/admin/register → Registro específico de nuevos administradores (solo accesible para administradores).
  *
  * Esta clase interactúa con:
  * - AuthenticationService → Contiene la lógica de registro de usuarios.
@@ -60,11 +63,36 @@ public class AuthenticationController {
      * @param request objeto con datos del usuario a registrar (nombre, email, contraseña, rol, etc.)
      * @return respuesta con los datos de autenticación (token JWT) del usuario registrado.
      */
-    @PreAuthorize("hasRole('USER')")
-    @PostMapping("/register")
-    public ResponseEntity<AuthenticationResponse> register (
-            @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authenticationService.register(request));
+//    @PreAuthorize("hasRole('USER')")
+//    @PostMapping("/register")
+//    public ResponseEntity<AuthenticationResponse> register (
+//            @RequestBody RegisterRequest request) {
+//        return ResponseEntity.ok(authenticationService.register(request));
+//    }
+
+    /**
+     * Endpoint específico para registrar un nuevo administrador.
+     * Solo accesible por usuarios con rol ADMIN.
+     * Incluye validación de campos del DTO.
+     *
+     * @param adminDTO objeto con datos del administrador a registrar (email y contraseña)
+     * @return mensaje de éxito o error según el resultado de la operación
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/admin/register")
+    public ResponseEntity<String> registerAdmin(@Valid @RequestBody AdminRegisterDTO adminDTO) {
+        try {
+            // Verificar que las contraseñas coincidan
+            if (!adminDTO.getPassword().equals(adminDTO.getConfirmPassword())) {
+                return ResponseEntity.badRequest().body("Las contraseñas no coinciden");
+            }
+
+            // Registrar el nuevo administrador
+            authenticationService.registerAdmin(adminDTO);
+            return ResponseEntity.ok("Administrador registrado exitosamente");
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
     }
 
     /**

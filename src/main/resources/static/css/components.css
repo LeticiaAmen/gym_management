@@ -229,3 +229,50 @@ body.with-navbar {
     background-color: rgba(255, 255, 255, 0.1);
     color: white;
 }
+
+/* ====== Estilos para formulario de administradores y mensajes de feedback ====== */
+
+/* Estilos para los mensajes de feedback */
+.form-feedback {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.form-feedback.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.form-feedback.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Estilos para la validación de contraseña */
+.password-requirements {
+  margin-top: 5px;
+  font-size: 0.85em;
+  color: #6c757d;
+}
+
+.password-requirements ul {
+  margin-top: 5px;
+  padding-left: 20px;
+}
+
+.password-requirements li {
+  margin-bottom: 2px;
+}
+
+.password-requirements li.valid {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.password-requirements li.valid::before {
+  content: "✓ ";
+}

@@ -1,67 +1,68 @@
 package com.gym.gym_management.controller;
 
-import com.gym.gym_management.controller.dto.UserDTO;
-import com.gym.gym_management.model.User;
+import com.gym.gym_management.controller.dto.ChangePasswordDTO;
 import com.gym.gym_management.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+import jakarta.validation.Valid;
 
 /**
- * Controlador REST para gestionar operaciones relacionadas con usuarios del sistema.
+ * Controlador para gestionar las operaciones relacionadas con usuarios del sistema.
+ * <p>
+ * Este controlador expone endpoints para consultar la información de usuarios
+ * y realizar operaciones como cambiar la contraseña.
  *
- * Endpoints:
- * - GET /users → Lista todos los usuarios registrados.
- *
- * Relación con los requerimientos:
- * - "Usuarios y Roles":
- *   Permite consultar la lista de usuarios (administradores y clientes).
- * - "Panel de Administrador":
- *   Este endpoint puede ser útil para que un administrador vea todos los usuarios registrados.
- * - "Autenticación y Seguridad":
- *   Se puede restringir este endpoint para que solo los administradores tengan acceso.
+ * @author GymManagement
+ * @version 1.0
  */
-
 @RestController
-@RequestMapping("/api/users") //Ruta base
+@RequestMapping("/api/users")
+@PreAuthorize("hasRole('ADMIN')")
 public class UserController {
 
-    // Servicio que encapsula la lógica de negocio de los usuarios.
     private final UserService userService;
 
-    /**
-     * Constructor que inyecta el servicio de usuarios.
-     * @param userService servicio para la gestión de usuarios.
-     */
     @Autowired
     public UserController(UserService userService) {
         this.userService = userService;
     }
 
     /**
-     * Obtiene la lista de todos los usuarios registrados en el sistema.
-     * Acceso: solo usuarios con rol ADMIN.
-     * @return ResponseEntity con la lista de usuarios (DTO) y estado 200 OK.
+     * Cambia la contraseña del usuario autenticado.
+     * <p>
+     * Este endpoint permite a un usuario cambiar su propia contraseña.
+     * Verifica que la contraseña actual sea correcta antes de realizar el cambio.
+     *
+     * @param changePasswordDTO datos para el cambio de contraseña (contraseña actual y nueva)
+     * @param authentication objeto que contiene la información del usuario autenticado
+     * @return respuesta vacía con código 200 si el cambio fue exitoso
      */
-    @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<UserDTO>> findAll() {
-        List<UserDTO> users = userService.findAll().stream().map(this::toDTO).collect(Collectors.toList());
-        return ResponseEntity.ok(users);
-    }
+    @PostMapping("/change-password")
+    public ResponseEntity<String> changePassword(
+            @Valid @RequestBody ChangePasswordDTO changePasswordDTO,
+            Authentication authentication) {
 
-    private UserDTO toDTO(User user) {
-        UserDTO dto = new UserDTO();
-        dto.setId(user.getId());
-        dto.setEmail(user.getEmail());
-        dto.setRole(user.getRole());
-        return dto;
+        try {
+            // Obtenemos el email del usuario autenticado
+            String userEmail = authentication.getName();
+
+            // Llamamos al servicio para cambiar la contraseña
+            userService.changePassword(
+                userEmail,
+                changePasswordDTO.getCurrentPassword(),
+                changePasswordDTO.getNewPassword(),
+                changePasswordDTO.getConfirmPassword()
+            );
+
+            return ResponseEntity.ok("Contraseña cambiada exitosamente");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(500).body("Error al cambiar la contraseña: " + e.getMessage());
+        }
     }
 }

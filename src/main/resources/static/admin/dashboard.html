@@ -17,6 +17,7 @@
       <li><a href="#" data-section="clients">Clientes</a></li>
       <li><a href="#" data-section="payments">Pagos</a></li>
       <li><a href="#" data-section="reports">Reportes</a></li>
+      <li><a href="#" data-section="admins">Administradores</a></li>
     </ul>
 
     <div class="navbar-user">
@@ -220,6 +221,42 @@
 
       <div id="report-results" class="report-results"></div>
     </section>
+
+    <!-- Sección Administradores -->
+    <section id="admins-section" class="section" style="display:none">
+      <div class="section-header">
+        <div class="section-title">
+          <h1>Gestión de Administradores</h1>
+          <p class="section-subtitle">Administra los usuarios con rol de administrador</p>
+        </div>
+        <button onclick="showAdminForm()" class="btn-new-action">
+          <span class="btn-icon">+</span>
+          Nuevo administrador
+        </button>
+      </div>
+
+      <div class="admins-table-container">
+        <div class="table-header">
+          <h3>Todos los administradores (<span id="admins-count">--</span>)</h3>
+        </div>
+
+        <div class="modern-table-wrapper">
+          <table id="admins-table" class="modern-table">
+            <thead>
+              <tr>
+                <th>Email / Usuario</th>
+                <th>Rol</th>
+                <th>ID</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Los datos se cargarán dinámicamente con JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </div>
 
   <!-- Modales -->
@@ -231,6 +268,9 @@
   </div>
   <div id="pause-modal" class="modal">
     <!-- Formulario de pausa -->
+  </div>
+  <div id="admin-modal" class="modal">
+    <!-- Formulario de administrador -->
   </div>
 
   <!-- Modal de confirmación -->
