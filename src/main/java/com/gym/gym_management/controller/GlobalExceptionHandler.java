@@ -1,5 +1,6 @@
 package com.gym.gym_management.controller;
 
+import com.gym.gym_management.service.RateLimitExceededException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,5 +35,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleResponseStatus(ResponseStatusException ex) {
         return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
     }
-}
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<String> handleRateLimit(RateLimitExceededException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(ex.getMessage());
+    }
+}

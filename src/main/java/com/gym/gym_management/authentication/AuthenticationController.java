@@ -2,6 +2,7 @@ package com.gym.gym_management.authentication;
 
 
 import com.gym.gym_management.configuration.JwtService;
+import com.gym.gym_management.service.RateLimitService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 /**
@@ -46,13 +48,15 @@ public class AuthenticationController {
     private final JwtService jwtService;
     // Administrador de autenticaciones que valida usuario y contraseña.
     private final AuthenticationManager authenticationManager;
+    private final RateLimitService rateLimitService; // Nuevo servicio para rate limiting
 
     //Constructor con inyección de dependencias
     @Autowired
-    public AuthenticationController(AuthenticationService authenticationService, JwtService jwtService, AuthenticationManager authenticationManager) {
+    public AuthenticationController(AuthenticationService authenticationService, JwtService jwtService, AuthenticationManager authenticationManager, RateLimitService rateLimitService) {
         this.authenticationService = authenticationService;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
+        this.rateLimitService = rateLimitService;
     }
 
 
@@ -104,21 +108,30 @@ public class AuthenticationController {
      * @return token JWT en caso de éxito, o estado UNAUTHORIZED si las credenciales son inválidas o faltan.
      */
     @PostMapping("/login")
-    public ResponseEntity<AuthenticationResponse> login (@RequestBody(required = false) AuthenticationRequest request) {
+    public ResponseEntity<AuthenticationResponse> login (@RequestBody(required = false) AuthenticationRequest request, HttpServletRequest httpRequest) {
+        String email = (request != null ? request.getEmail() : null);
+        String ip = httpRequest.getRemoteAddr();
+        // Verificar si está permitido intentar (bloque previo)
+        rateLimitService.assertLoginAllowed(email, ip);
         try{
-            // Validación temprana: si no hay body o faltan credenciales, devolver 401
-            if (request == null || request.getEmail() == null || request.getPassword() == null
-                    || request.getEmail().isBlank() || request.getPassword().isBlank()) {
+            if (request == null || email == null || request.getPassword() == null
+                    || email.isBlank() || request.getPassword().isBlank()) {
+                // Registrar fallo (entrada inválida también cuenta para evitar enumeración)
+                rateLimitService.registerLoginFailure(email, ip);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
             //Autenticación de usuario con las credenciales proporcionadas
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                    new UsernamePasswordAuthenticationToken(email, request.getPassword())
             );
+            // Éxito: limpiar contador
+            rateLimitService.registerLoginSuccess(email, ip);
             //Generar token jwt si las credenciales son válidas
             String token = jwtService.generateToken(authentication);
             return ResponseEntity.ok(new AuthenticationResponse(token));
         } catch (AuthenticationException ex){
+            // Fallo de credenciales: registrar intento fallido
+            rateLimitService.registerLoginFailure(email, ip);
             //si las credenciales son incorrectas, devuelve HTTP 401 Unauthorized
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }

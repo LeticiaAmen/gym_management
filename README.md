@@ -1,112 +1,131 @@
 # Gym Management
 
-Proyecto personal de aprendizaje para mi portafolio. Es una app simple para administrar socios y pagos de un gimnasio.
+App web para quienes administran un gimnasio y quieren dejar de depender de planillas dispersas. Te ayuda a saber quién está al día, quién vence pronto, qué pagos registrar y cómo mantener un orden simple sin sobrecarga.
 
-- Diseñé la base de datos y el modelo de backend con Spring Boot.
-- Para la parte visual (HTML/CSS/JS) me apoyo en GitHub Copilot para acelerar el front.
+Todo corre en tu propio entorno: tú controlas la base de datos y los datos no salen de tu infraestructura. Ideal para practicar, iterar e incluso extender según tus necesidades.
+
+> ¿Buscas detalles técnicos (arquitectura, seguridad, estados, roadmap profundo)? Están en: [`docs/technical-overview.md`](./docs/technical-overview.md)
 
 ---
 
 ## ¿Qué hace?
 
-- Clientes: alta/edición/activación y pausa de suscripciones.
-- Pagos: registrar, listar, filtrar y anular.
-  - La tabla de pagos muestra una columna "Tiempo" con: "1 mes" o "N días" + el rango de vigencia (fecha de pago → fecha de expiración).
-- Reportes: membresías vencidas, por vencer (7 días) e ingresos del mes.
-- Dashboard: tarjetas con métricas y actividad reciente.
+- Dashboard en un vistazo: métricas de clientes, pagos recientes y actividad relevante.
+- Clientes organizados: alta, edición, pausa / reactivación y seguimiento del estado.
+- Pagos claros: registrar, anular (baja lógica), ver vigencias y próximos vencimientos.
+- Reportes útiles: membresías vencidas, por vencer (7 días) e ingresos del mes.
+- Recordatorios por email: avisa antes de que un pago expire (opcional por flag).
+- Múltiples administradores: registra otros admins de forma segura (password BCrypt).
+- Cambio de contraseña personal: cada admin gestiona la propia, no la de otros.
+- Recuperación de acceso: flujo de “olvidé mi contraseña” con token temporal.
 
-Semilla de datos incluida (data.sql): crea 30 socios con pagos variados; al menos 10 vencidos para probar escenarios reales.
-
----
-
-## Stack
-
-- Java 17 + Spring Boot
-- Spring Web, Spring Security (JWT), Spring Data JPA
-- PostgreSQL
-- Frontend estático simple (HTML/CSS/JS) en `/src/main/resources/static`
+Semilla incluida (`data.sql`): crea clientes y pagos variados (vigentes, próximos a vencer y vencidos) para explorar sin cargar datos manualmente.
 
 ---
 
-## Correrlo en local (rápido)
+## Cómo empezar rápido
 
-1) Variables de entorno mínimas (puedes exportarlas en tu terminal):
+1. Instala Java 17 (si aún no lo tienes).
+2. Asegura que tienes PostgreSQL funcionando y una base creada (vacía) para pruebas.
+3. Exporta/define variables de entorno mínimas:
+   - `SPRING_DATASOURCE_URL` (ej: `jdbc:postgresql://localhost:5432/gym_management`)
+   - `SPRING_DATASOURCE_USERNAME`
+   - `SPRING_DATASOURCE_PASSWORD`
+   - `JWT_SECRET` (cualquier cadena Base64 de al menos 32 bytes en desarrollo)
+4. Ejecuta la app con el wrapper de Maven.
+5. Abre el navegador y entra al panel.
+6. Empieza a explorar: crea pagos, pausa un cliente, genera reportes.
 
-- `SPRING_DATASOURCE_URL` (ej: `jdbc:postgresql://localhost:5432/gym_management`)
-- `SPRING_DATASOURCE_USERNAME` (ej: `postgres`)
-- `SPRING_DATASOURCE_PASSWORD` (ej: `postgres`)
-- `JWT_SECRET` (32 bytes en Base64; para pruebas puedes usar cualquier cadena Base64)
-
-2) Arrancar la app con Maven Wrapper:
-
-```bash
-./mvnw spring-boot:run
-```
-
-La app crea el esquema y carga la semilla automáticamente (modo demo). Si usas Windows, puedes correr `mvnw.cmd spring-boot:run`.
-
----
-
-## Login de demo
-
+Credenciales demo:
 - Usuario: `admin@gym.com`
 - Clave: `password`
 
-(Se crea desde `data.sql` sólo para desarrollo.)
+> Nota: sólo para desarrollo. Cámbialo en entornos reales.
 
 ---
 
-## Rutas útiles
+## Instalación local paso a paso
 
-- Panel web: `http://localhost:8080/admin/dashboard.html`
-- Login: `http://localhost:8080/index.html`
+Linux / macOS:
+```bash
+# 1) Clonar (o descarga el ZIP y descomprime)
+git clone <url-del-repo>
+cd gymManagement
 
----
+# 2) Ejecutar la aplicación (compila + levanta servidor)
+./mvnw spring-boot:run
+```
+Windows (CMD o PowerShell):
+```bat
+REM 1) Clonar
+git clone <url-del-repo>
+cd gymManagement
 
-## Estrategia de estados de pago
-
-El sistema persiste estados en la entidad `Payment` para simplificar reportes y futuras integraciones (ej: torniquetes o control de acceso).
-
-Estados:
-- **UP_TO_DATE**: pago vigente desde `paymentDate` hasta `expirationDate`.
-- **EXPIRED**: se materializa (persistido) cuando `expirationDate < hoy` mediante un job diario (`PaymentExpirationJob`). Garantiza consultas rápidas y métricas consistentes.
-- **VOIDED**: pago anulado (baja lógica) con motivo y auditoría.
-
-No existe estado PENDING: mientras el pago esté dentro de su vigencia se considera UP_TO_DATE. Si un período aún no tiene pago y ya pasó la fecha conceptual + días de gracia, se considera EXPIRED a nivel lógico (para búsquedas de clientes) aunque no haya registro nuevo.
-
-Job de expiración:
-- Corre a las 02:00 AM (`PaymentExpirationJob`) y hace un bulk update UP_TO_DATE → EXPIRED para todos los pagos vencidos.
-- Idempotente: múltiples ejecuciones en el día no afectan una vez que se actualizó.
-
-Recordatorios:
-- `PaymentReminderJob` (configurable) busca pagos UP_TO_DATE que vencerán en X días y dispara emails con `EmailService`.
-- Se pueden desactivar con `app.reminder.enabled=false` (útil en tests).
-
-Ventajas de materializar EXPIRED:
-- Índices y queries simples por estado.
-- Menos lógica duplicada en frontend.
-- Base para reglas futuras (bloqueos, escalado de notificaciones, recargos).
+REM 2) Ejecutar
+mvnw.cmd spring-boot:run
+```
+La app levantará (por defecto) en: `http://localhost:8080/`
 
 ---
 
-## Notas de diseño
+## Navegación principal
 
-- Modelo principal: `Client` y `Payment`.
-  - `Payment` tiene `paymentDate`, `expirationDate`, `paymentState`, `voided` y `durationDays` (para pagos por días).
-  - `paymentState` se actualiza por lógica de negocio (UP_TO_DATE / EXPIRED / VOIDED).
-- API expone DTOs (no devuelve entidades JPA directamente).
-- Seguridad con JWT (rol ADMIN para panel).
-
----
-
-## Roadmap (próximos pasos sugeridos)
-
-- UI responsive.
-- Integrar servicio de email transaccional real (SendGrid / SES) con plantillas HTML.
-- Control de acceso físico (usar estado EXPIRED materializado).
-- Historial de transiciones de estado (tabla `payment_state_history`).
-- Docker Compose para levantar DB + app fácilmente.
+- Dashboard: resumen general.
+- Clientes: administración de socios (estado, pausas, detalle rápido).
+- Pagos: registro, búsqueda y control de vigencias.
+- Reportes: vencidos, por vencer y resumen de ingresos.
+- Administradores: alta de nuevos admins y listado.
+- Cambiar contraseña: formulario interno (solo propia cuenta).
+- Recuperar contraseña: enlaces públicos `forgot-password.html` y `reset-password.html`.
 
 ---
 
-Hecho con ganas de aprender y construir mi portafolio.
+## Recuperación de contraseña (flujo amigable)
+
+1. El admin solicita desde `Olvidaste tu contraseña?`.
+2. Si el email existe, se envía un enlace con token (30 min de validez).
+3. Abre el enlace → establece nueva contraseña.
+4. El token se invalida al usarse.
+
+Siempre se responde con mensaje genérico para no filtrar existencia de correos.
+
+---
+
+## Configuración rápida
+
+Variables / flags útiles:
+- `JWT_SECRET`: firma de los tokens.
+- `app.reminder.enabled=true|false`: activa job de recordatorios.
+- `app.email.enabled=true|false`: si es false, se loguea el correo en consola.
+- `app.mail.from`: remitente mostrado en emails.
+
+Mientras `app.email.enabled=false` puedes probar el flujo sin un servidor SMTP real.
+
+---
+
+## Seguridad y consideraciones
+
+- Este proyecto usa PostgreSQL: tus datos persisten mientras no borres la base.
+- La semilla (`data.sql`) es solo para pruebas; elimínala o ajusta para producción.
+- Las contraseñas se almacenan con BCrypt.
+- Los tokens de recuperación se guardan en memoria (se pierden al reiniciar). Para algo serio: persístelos en BD.
+
+---
+
+## Sigue construyendo (ideas)
+
+- Añadir vista responsive para móviles.
+- Historial de cambios y auditoría de seguridad.
+- Persistir tokens de recuperación y logs de recordatorios.
+- Exportar reportes a CSV / PDF.
+- Ver indicador “recordatorio enviado” en reportes de vencimientos.
+- Integrar un servicio de correo transaccional real.
+
+Si quieres más profundidad técnica, revisa: [`docs/technical-overview.md`](./docs/technical-overview.md)
+
+---
+
+## Autor
+
+Proyecto creado para aprendizaje y portfolio personal. Si te resulta útil o quieres sugerir mejoras, siéntete libre de abrir un issue o forkarlo.
+

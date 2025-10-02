@@ -3,6 +3,8 @@ package com.gym.gym_management.controller;
 import com.gym.gym_management.controller.dto.PasswordResetRequestDTO;
 import com.gym.gym_management.controller.dto.PasswordResetConfirmDTO;
 import com.gym.gym_management.service.PasswordResetService;
+import com.gym.gym_management.service.RateLimitService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -22,10 +24,12 @@ import org.springframework.web.bind.annotation.*;
 public class PasswordResetController {
 
     private final PasswordResetService passwordResetService;
+    private final RateLimitService rateLimitService; // Nuevo servicio para rate limiting
 
     @Autowired
-    public PasswordResetController(PasswordResetService passwordResetService) {
+    public PasswordResetController(PasswordResetService passwordResetService, RateLimitService rateLimitService) {
         this.passwordResetService = passwordResetService;
+        this.rateLimitService = rateLimitService;
     }
 
     /**
@@ -38,8 +42,15 @@ public class PasswordResetController {
      * @return respuesta indicando que se ha iniciado el proceso si el email existe
      */
     @PostMapping("/request-reset")
-    public ResponseEntity<String> requestPasswordReset(@Valid @RequestBody PasswordResetRequestDTO requestDTO) {
-        passwordResetService.initiatePasswordReset(requestDTO.getEmail());
+    public ResponseEntity<String> requestPasswordReset(@Valid @RequestBody PasswordResetRequestDTO requestDTO, HttpServletRequest httpRequest) {
+        String email = requestDTO.getEmail();
+        String ip = httpRequest.getRemoteAddr();
+        // verificar rate limit antes de procesar
+        rateLimitService.assertPasswordResetAllowed(email, ip);
+        passwordResetService.initiatePasswordReset(email);
+
+        // registrar siempre la solicitud (exista o no el mail) para prevenir enumeración
+        rateLimitService.registerPasswordResetRequest(email, ip);
 
         // Por seguridad, siempre retornamos un mensaje exitoso aunque el email no exista
         return ResponseEntity.ok("Si el correo existe, recibirás un mensaje con instrucciones para recuperar tu contraseña.");
