@@ -2,6 +2,7 @@ package com.gym.gym_management.security;
 
 import com.gym.gym_management.controller.PaymentController;
 import com.gym.gym_management.controller.dto.PaymentDTO;
+import com.gym.gym_management.model.PaymentState; // nuevo import
 import com.gym.gym_management.service.PaymentService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,10 +12,14 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable; // nuevo import
+import org.springframework.mail.javamail.JavaMailSender; // mock mail sender
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDate; // nuevo import
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -36,6 +41,9 @@ class SecurityAccessTest {
     @MockBean
     private PaymentService paymentService;
 
+    @MockBean
+    private JavaMailSender javaMailSender; // mock para evitar dependencia real de correo
+
     @Test
     void endpointPagos_requiereRolAdmin_sinToken_devuelve401() throws Exception {
         mockMvc.perform(get("/api/payments"))
@@ -52,8 +60,16 @@ class SecurityAccessTest {
     @Test
     @WithMockUser(roles = "ADMIN")
     void endpointPagos_conRolAdminDevuelve200() throws Exception {
-        Mockito.when(paymentService.findPayments(any(), any(), any(), any(), any()))
-                .thenReturn(Page.empty());
+        // Ajustado a la nueva firma: (Long, String, LocalDate, LocalDate, PaymentState, Pageable)
+        Mockito.when(paymentService.findPayments(
+                any(Long.class),
+                any(String.class),
+                any(LocalDate.class),
+                any(LocalDate.class),
+                any(PaymentState.class),
+                any(Pageable.class)
+        )).thenReturn(Page.empty());
+
         mockMvc.perform(get("/api/payments"))
                 .andExpect(status().isOk());
     }
@@ -70,4 +86,3 @@ class SecurityAccessTest {
                 .andExpect(status().isUnauthorized());
     }
 }
-

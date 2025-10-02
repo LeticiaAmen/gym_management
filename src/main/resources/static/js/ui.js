@@ -5,7 +5,7 @@
  * como apiFetch, manteniendo el código más organizado y seguro.
  * Los scripts clásicos no permiten imports y pueden causar errores de dependencias.
  */
-import { apiFetch, registerAdmin, getAdmins } from './api.js';
+import { apiFetch, registerAdmin, getAdmins, changePassword } from './api.js';
 
 /* ============================================================================
  * UI / Frontend Admin Panel
@@ -73,8 +73,8 @@ function formatPaymentDuration(payment) {
 //construye el contenido de la celda "Tiempo" con rango
 function formatPaymentTimeCell(payment) {
     const durationText = formatPaymentDuration(payment);
-    const pd = payment && payment.paymentDate ? new Date(payment.paymentDate) : null;
-    const ed = payment && payment.expirationDate ? new Date(payment.expirationDate) : null;
+    const pd = payment && payment.paymentDate ? parseLocalYmd(payment.paymentDate) : null;
+    const ed = payment && payment.expirationDate ? parseLocalYmd(payment.expirationDate) : null;
     const fmt = (d) => d ? d.toLocaleDateString() : '-';
     if (pd && ed) {
         return `${durationText} • ${fmt(pd)} → ${fmt(ed)}`;
@@ -97,6 +97,60 @@ function isCurrentlyPaused(client) {
 
 // Cache simple en memoria para reutilizar datos en acciones (editar)
 let clientsCache = [];
+
+/**
+ * Resuelve uno o varios IDs de cliente a partir del texto ingresado en el filtro de pagos.
+ * Formatos soportados:
+ *   "123 - Nombre Apellido (email@dominio)"  -> extrae 123
+ *   "123" (solo dígitos)                      -> 123
+ *   "Nombre" / "Apellido" / "Nombre Ap"     -> busca coincidencias por nombre+apellido o email (case insensitive)
+ *   Múltiples separados por coma: "123, 456" o "Juan, Maria" -> combina resultados únicos
+ * Estrategia de coincidencia textual:
+ *   - normaliza a lower case
+ *   - un match si el fragmento está contenido en (firstName + lastName) o en el email
+ * Devuelve lista de IDs únicos (array vacío si nada coincide).
+ * No hace fetch: asume que clientsCache ya fue cargado (loadClients o populatePaymentClientFilter). Si aún no se cargó,
+ * y el usuario escribe texto NO numérico, devolverá []. En ese caso el usuario puede presionar Filtrar nuevamente luego
+ * de que la carga inicial finalice.
+ * @param {string} raw texto ingresado en el input del filtro
+ * @returns {number[]} array de IDs de clientes coincidentes
+ */
+function resolveClientIdsFromQuery(raw) {
+    if (!raw || typeof raw !== 'string') return [];
+    // Permitir múltiples separados por coma
+    const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+    const ids = new Set();
+
+    for (const part of parts) {
+        if (!part) continue;
+        // Caso 1: comienza con dígitos → tomar número inicial (patrón del datalist: "ID - nombre (email)")
+        const m = part.match(/^(\d+)/);
+        if (m) {
+            const idNum = Number(m[1]);
+            if (!Number.isNaN(idNum)) {
+                // Si tenemos cache y existe en cache lo agregamos, si no hay cache todavía igual lo agregamos para permitir búsqueda directa por ID
+                if (!Array.isArray(clientsCache) || clientsCache.length === 0 || clientsCache.some(c => Number(c.id) === idNum)) {
+                    ids.add(idNum);
+                    continue; // siguiente part
+                }
+            }
+        }
+        // Caso 2: fragmento textual → buscar coincidencias por nombre completo o email
+        const frag = part.toLowerCase();
+        if (!Array.isArray(clientsCache) || clientsCache.length === 0) {
+            // sin cache no podemos resolver texto
+            continue;
+        }
+        clientsCache.forEach(c => {
+            const name = `${c.firstName || ''} ${c.lastName || ''}`.trim().toLowerCase();
+            const email = (c.email || '').toLowerCase();
+            if (name.includes(frag) || email.includes(frag)) {
+                ids.add(Number(c.id));
+            }
+        });
+    }
+    return Array.from(ids);
+}
 
 // ===================== Gestión de Secciones / Navegación =====================
 // Navegación simple entre secciones
@@ -162,7 +216,7 @@ async function loadClients(filters = null) {
         }
         if (countEl) countEl.textContent = String(clients.length);
         tbody.innerHTML = clients.map(client => {
-            const start = client.startDate ? new Date(client.startDate).toLocaleDateString() : '-';
+            const start = client.startDate ? formatYmdDisplay(client.startDate) : '-';
             const pauseBtn = isCurrentlyPaused(client)
                 ? `<button type="button" class="action-btn pause js-resume" data-id="${client.id}" title="Reanudar">▶️</button>`
                 : `<button type="button" class="action-btn pause js-pause" data-id="${client.id}" title="Pausar">⏸️</button>`;
@@ -679,7 +733,7 @@ async function loadPayments(filters = {}) {
             if (countEl) countEl.textContent = String(items.length);
             tbody.innerHTML = sortedItems.map(payment => {
                 const amount = Number(payment.amount || 0).toFixed(2);
-                const dateStr = payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '-';
+                const dateStr = payment.paymentDate ? formatYmdDisplay(payment.paymentDate) : '-';
                 const timeCell = formatPaymentTimeCell(payment);
                 // Preferir datos del backend en PaymentDTO
                 const fromDtoName = `${payment.clientFirstName || ''} ${payment.clientLastName || ''}`.trim();
@@ -746,7 +800,7 @@ async function loadPayments(filters = {}) {
         if (countEl) countEl.textContent = String(totalCount);
         tbody.innerHTML = sortedItems.map(payment => {
             const amount = Number(payment.amount || 0).toFixed(2);
-            const dateStr = payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '-';
+            const dateStr = payment.paymentDate ? formatYmdDisplay(payment.paymentDate) : '-';
             const timeCell = formatPaymentTimeCell(payment);
             // Preferir datos del backend en PaymentDTO
             const fromDtoName = `${payment.clientFirstName || ''} ${payment.clientLastName || ''}`.trim();
@@ -1836,3 +1890,19 @@ function validateNewPassword() {
   document.getElementById('pw-lowercase-check').className = hasLowerCase ? 'valid' : '';
   document.getElementById('pw-number-check').className = hasNumber ? 'valid' : '';
 }
+
+// === Helpers añadidos para evitar desfase y ReferenceError ===
+// parseLocalYmd: crea un Date local a partir de 'YYYY-MM-DD' sin interpretarlo como UTC.
+function parseLocalYmd(ymd) {
+    if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+    const [y,m,d] = ymd.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+// formatYmdDisplay: envuelve parseLocalYmd y devuelve una fecha localizada o '-'.
+function formatYmdDisplay(ymd) {
+    const d = parseLocalYmd(ymd);
+    return d ? d.toLocaleDateString() : '-';
+}
+// === Fin helpers añadidos ===
+

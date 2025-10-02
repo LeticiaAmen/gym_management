@@ -5,6 +5,7 @@ import com.gym.gym_management.model.*;
 import com.gym.gym_management.repository.IPaymentRepository;
 import com.gym.gym_management.repository.IClientRepository;
 import com.gym.gym_management.repository.IUserRepository;
+import jakarta.persistence.criteria.JoinType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -120,26 +121,60 @@ public class PaymentService {
      *   <li>Ejecuta findAll(spec, pageable) y mapea a DTO.</li>
      * </ol>
      * @param clientId id del cliente (opcional)
+     * @param queryText texto de búsqueda para nombre, apellido o email del cliente (opcional)
      * @param from fecha mínima inclusive (paymentDate >= from) – null ignora filtro
      * @param to fecha máxima inclusive (paymentDate <= to) – null ignora filtro
      * @param state estado persistido (UP_TO_DATE, EXPIRED, VOIDED) o null para cualquiera
      * @param pageable paginación y orden
      * @return página de pagos en formato DTO
      */
-    public Page<PaymentDTO> findPayments(Long clientId, LocalDate from, LocalDate to, PaymentState state, Pageable pageable) {
-        // Construcción incremental de la Specification; cada filtro opcional se añade sólo si se solicita.
-        Specification<Payment> spec = Specification.where(null);
-        if (clientId != null) { // Filtra por cliente específico
+    public Page<PaymentDTO> findPayments(Long clientId, String queryText, LocalDate from, LocalDate to, PaymentState state, Pageable pageable) {
+        Specification<Payment> spec = Specification.where((root, query, cb) -> {
+            // fetch join para evitar N+1 cuando luego accedemos a client.* en toDTO
+            root.fetch("client", JoinType.LEFT);
+            query.distinct(true);
+            return cb.conjunction();
+        });
+        if (clientId != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("client").get("id"), clientId));
         }
-        if (from != null) { // Fecha mínima (inclusive)
+        if (queryText != null && !queryText.isBlank()) {
+            String pattern = "%" + queryText.trim().toLowerCase() + "%";
+            spec = spec.and((root, query, cb) -> {
+                var client = root.get("client");
+                return cb.or(
+                        cb.like(cb.lower(client.get("firstName")), pattern),
+                        cb.like(cb.lower(client.get("lastName")), pattern),
+                        cb.like(cb.lower(client.get("email")), pattern)
+                );
+            });
+        }
+        if (from != null) {
             spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("paymentDate"), from));
         }
-        if (to != null) { // Fecha máxima (inclusive)
+        if (to != null) {
             spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("paymentDate"), to));
         }
-        if (state != null) { // Estado persistido
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("paymentState"), state));
+        if (state != null) {
+            LocalDate today = LocalDate.now();
+            if (state == PaymentState.EXPIRED) {
+                spec = spec.and((root, query, cb) -> cb.or(
+                        cb.equal(root.get("paymentState"), PaymentState.EXPIRED),
+                        cb.and(
+                                cb.equal(root.get("paymentState"), PaymentState.UP_TO_DATE),
+                                cb.lessThan(root.get("expirationDate"), today)
+                        )
+                ));
+            } else if (state == PaymentState.UP_TO_DATE) {
+                spec = spec.and((root, query, cb) -> cb.and(
+                        cb.equal(root.get("paymentState"), PaymentState.UP_TO_DATE),
+                        cb.greaterThanOrEqualTo(root.get("expirationDate"), today)
+                ));
+            } else if (state == PaymentState.VOIDED) {
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("paymentState"), PaymentState.VOIDED));
+            } else {
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("paymentState"), state));
+            }
         }
         return paymentRepository.findAll(spec, pageable).map(this::toDTO);
     }
@@ -269,6 +304,34 @@ public class PaymentService {
                 });
     }
 
+    /**
+     * Deriva el estado actual de la membresía de un cliente considerando su último pago no anulado.
+     * <p>
+     * Regla simple (alineada a la necesidad de filtrar clientes por estado):
+     * <ul>
+     *   <li>Si no tiene pagos válidos registrados -> EXPIRED (se considera vencido).</li>
+     *   <li>Si el último pago (expirationDate) es anterior a hoy -> EXPIRED.</li>
+     *   <li>Si la fecha de expiración es hoy o futura -> UP_TO_DATE.</li>
+     * </ul>
+     * Pagos VOIDED no participan porque el repositorio busca voided=false.
+     * @param clientId id de cliente
+     * @return estado derivado (UP_TO_DATE o EXPIRED)
+     * @throws IllegalArgumentException si clientId es null
+     */
+    public PaymentState deriveCurrentMembershipState(Long clientId) {
+        if (clientId == null) throw new IllegalArgumentException("clientId es obligatorio");
+        Payment last = paymentRepository.findTopByClient_IdAndVoidedFalseOrderByExpirationDateDesc(clientId);
+        LocalDate today = LocalDate.now();
+        if (last == null) {
+            return PaymentState.EXPIRED; // sin pagos se asume vencido
+        }
+        LocalDate exp = last.getExpirationDate();
+        if (exp != null && exp.isBefore(today)) {
+            return PaymentState.EXPIRED;
+        }
+        return PaymentState.UP_TO_DATE;
+    }
+
     // ===================== Métodos internos de apoyo =====================
 
     private void validateRegisterInput(PaymentDTO dto) {
@@ -308,7 +371,13 @@ public class PaymentService {
         dto.setPaymentDate(payment.getPaymentDate());
         dto.setExpirationDate(payment.getExpirationDate());
         dto.setDurationDays(payment.getDurationDays());
-        dto.setState(payment.getState());
+        // Estado efectivo: si está marcado VOIDED se respeta; si está UP_TO_DATE pero expirationDate < hoy => EXPIRED lógico
+        PaymentState persisted = payment.getState();
+        PaymentState effective = persisted;
+        if (persisted == PaymentState.UP_TO_DATE && payment.getExpirationDate() != null && payment.getExpirationDate().isBefore(LocalDate.now())) {
+            effective = PaymentState.EXPIRED;
+        }
+        dto.setState(effective);
         dto.setVoided(payment.isVoided());
         dto.setVoidedBy(payment.getVoidedBy());
         dto.setVoidReason(payment.getVoidReason());

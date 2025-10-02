@@ -15,10 +15,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Controlador REST para gestionar pagos de clientes.
@@ -37,6 +40,8 @@ import java.util.Optional;
 @RequestMapping("/api/payments")
 @PreAuthorize("hasRole('ADMIN')")
 public class PaymentController {
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
 
     @Autowired
     private PaymentService paymentService;
@@ -77,13 +82,19 @@ public class PaymentController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) String state,
+            @RequestParam(required = false, name = "q") String queryText,
             @PageableDefault(sort = "paymentDate", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         if (from != null && to != null && from.isAfter(to)) {
             return ResponseEntity.badRequest().body("El parámetro 'from' no puede ser posterior a 'to'");
         }
+        log.debug("[GET /api/payments] params clientId={}, q='{}', from={}, to={}, rawState='{}', page={}, size={}", clientId, queryText, from, to, state, pageable.getPageNumber(), pageable.getPageSize());
         PaymentState parsedState = mapFlexibleState(state); // null si no viene / no se reconoce
-        Page<PaymentDTO> page = paymentService.findPayments(clientId, from, to, parsedState, pageable);
+        if (state != null) {
+            log.debug("[GET /api/payments] parsedState={}", parsedState);
+        }
+        Page<PaymentDTO> page = paymentService.findPayments(clientId, queryText, from, to, parsedState, pageable);
+        log.debug("[GET /api/payments] result elements={}, pageContentSize={}", page.getTotalElements(), page.getContent().size());
         return ResponseEntity.ok(page);
     }
 
@@ -141,25 +152,46 @@ public class PaymentController {
 
     private PaymentState mapFlexibleState(String raw) {
         if (raw == null || raw.isBlank()) return null;
-        String normalized = raw.trim().toUpperCase(Locale.ROOT)
+        // Normalización agresiva: quitar acentos, espacios, guiones, dos puntos y prefijo "PAGO"
+        String normalized = Normalizer.normalize(raw, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "") // quitar diacríticos
+                .toUpperCase(Locale.ROOT)
                 .replace("PAGO:", "")
                 .replace("PAGO", "")
+                .replace("_", " ")
+                .replace('-', ' ')
                 .trim();
-        if (normalized.isBlank() || normalized.equals("TODOS") || normalized.equals("ALL")) return null;
-        // Sinónimos
-        if (normalized.equals("AL DIA") || normalized.equals("AL DÍA") || normalized.equals("ALDIA") || normalized.equals("UPTODATE")) {
+        // Unificar múltiples espacios
+        normalized = normalized.replaceAll(" +", " ");
+        if (normalized.isBlank()) return null;
+        if (normalized.equals("TODOS") || normalized.equals("ALL")) return null;
+
+        // Sinónimos UP_TO_DATE
+        if (normalized.equals("AL DIA") || normalized.equals("AL DIA") || normalized.equals("ALDIA") || normalized.equals("AL DIA")) {
             return PaymentState.UP_TO_DATE;
         }
-        if (normalized.startsWith("VENCID")) { // VENCIDO / VENCIDOS
+        if (normalized.equals("UP TO DATE") || normalized.equals("UPTODATE")) {
+            return PaymentState.UP_TO_DATE;
+        }
+        // Sinónimos EXPIRED
+        if (normalized.startsWith("VENCID")) {
             return PaymentState.EXPIRED;
         }
-        if (normalized.startsWith("ANULAD")) { // ANULADO / ANULADOS
+        if (normalized.equals("EXPIRADO") || normalized.equals("EXPIRADOS")) {
+            return PaymentState.EXPIRED;
+        }
+        // Sinónimos VOIDED
+        if (normalized.startsWith("ANULAD")) {
             return PaymentState.VOIDED;
         }
+        if (normalized.equals("VOID") || normalized.equals("VOIDED")) {
+            return PaymentState.VOIDED;
+        }
+        // Intentar parse directo contra enum estándar
         try {
-            return PaymentState.valueOf(normalized);
+            return PaymentState.valueOf(normalized.replace(" ", "_")); // por si llega "UP TO DATE"
         } catch (Exception ex) {
-            return null; // desconocido -> ignorar
+            return null; // desconocido -> sin filtro
         }
     }
 }

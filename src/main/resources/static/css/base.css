@@ -306,6 +306,9 @@ body.login-bg #error {
     text-align: center;
     margin-top: .5rem;
 }
+.link{
+    color: #f59e0b;
+}
 
 @keyframes fadeIn {
     from { opacity: 0; }

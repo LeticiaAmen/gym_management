@@ -44,11 +44,12 @@ public class ClientService {
             base = clientRepository.findAll();
         }
         if (paymentState != null) {
-            LocalDate today = LocalDate.now();
-            int month = today.getMonthValue();
-            int year = today.getYear();
+            // Filtrado por estado de membresía derivado: solo tiene sentido para UP_TO_DATE / EXPIRED.
             base = base.stream()
-                    .filter(c -> paymentService.computePeriodState(c.getId(), month, year) == paymentState)
+                    .filter(c -> {
+                        PaymentState derived = paymentService.deriveCurrentMembershipState(c.getId());
+                        return derived == paymentState; // coincide exactamente
+                    })
                     .collect(Collectors.toList());
         }
         return base.stream().map(this::toDTO).collect(Collectors.toList());
