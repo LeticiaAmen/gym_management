@@ -13,7 +13,9 @@ import java.util.Objects;
 /**
  * Entidad JPA para usuarios administradores (sin Lombok para compatibilidad).
  */
+// @Entity indica que cada objeto User se persiste como una fila en la base de datos.
 @Entity
+// @Table permite elegir explícitamente el nombre de la tabla.
 @Table(name = "users")
 public class User implements UserDetails {
     /**

@@ -3,7 +3,9 @@ package com.gym.gym_management.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+// @Entity permite que Hibernate persista cada evento de auditoría.
 @Entity
+// @Table establece el nombre de la tabla de trazabilidad.
 @Table(name = "audit_logs")
 public class AuditLog {
     @Id

@@ -41,6 +41,8 @@ import java.util.Optional;
  * Esto evita traer todo a memoria y mejora el rendimiento con
  * grandes volúmenes históricos de pagos.
  */
+// @Repository marca la interfaz como repositorio; Spring Data implementa sus métodos
+// y transforma las consultas JPQL en operaciones contra la base de datos.
 @Repository
 public interface IPaymentRepository extends JpaRepository<Payment, Long>, JpaSpecificationExecutor<Payment> {
 
@@ -161,6 +163,7 @@ public interface IPaymentRepository extends JpaRepository<Payment, Long>, JpaSpe
      * @param expired estado destino
      * @return cantidad de filas afectadas
      */
+    // @Modifying indica que la consulta cambia datos, no que solo los lee.
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Payment p SET p.paymentState=:expired WHERE p.paymentState=:upToDate AND p.voided=false AND p.expirationDate < :today")
     int bulkExpire(@Param("today") LocalDate today,

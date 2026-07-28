@@ -28,13 +28,17 @@ import org.slf4j.LoggerFactory;
  * - DELETE /clients/{id}            → Elimina (soft delete) un cliente por id.
  */
 
+// @RestController expone métodos que responden directamente con JSON.
 @RestController
+// @RequestMapping define el prefijo común de todas las rutas de clientes.
 @RequestMapping("/api/clients")
+// @PreAuthorize exige ROLE_ADMIN antes de ejecutar cualquier endpoint de la clase.
 @PreAuthorize("hasRole('ADMIN')")
 public class ClientController {
 
     private static final Logger log = LoggerFactory.getLogger(ClientController.class);
 
+    // @Autowired permite que Spring inyecte el servicio gestionado por su contenedor.
     @Autowired
     private ClientService clientService;
 

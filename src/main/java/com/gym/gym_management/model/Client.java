@@ -24,7 +24,9 @@ import java.util.List;
  * - No se usa @GeneratedValue en id: el ID viene del User asociado (por @MapsId).
  * - Los métodos registerPayment/removePayment mantienen la bidireccionalidad con Payment.
  */
+// @Entity convierte Client en una entidad gestionada por Hibernate/JPA.
 @Entity
+// @Table relaciona la clase con la tabla clients.
 @Table(name = "clients")
 public class Client {
     @Id

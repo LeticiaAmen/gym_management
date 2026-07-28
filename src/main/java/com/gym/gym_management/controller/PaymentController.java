@@ -36,8 +36,11 @@ import org.slf4j.LoggerFactory;
  * </ul>
  * Siempre trabaja con DTOs para desacoplar la capa web de las entidades JPA.
  */
+// @RestController expone los pagos como una API y convierte los DTOs a JSON.
 @RestController
+// Prefijo común de todos los endpoints de pagos.
 @RequestMapping("/api/payments")
+// @PreAuthorize protege datos financieros y operaciones administrativas.
 @PreAuthorize("hasRole('ADMIN')")
 public class PaymentController {
 

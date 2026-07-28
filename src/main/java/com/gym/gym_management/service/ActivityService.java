@@ -18,9 +18,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+// @Service registra la lógica que construye la actividad reciente del dashboard.
 @Service
 public class ActivityService {
 
+    // @Autowired inyecta el repositorio de auditoría.
     @Autowired
     private IClientRepository clientRepository;
 

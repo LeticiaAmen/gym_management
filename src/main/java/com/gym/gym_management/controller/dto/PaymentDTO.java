@@ -29,6 +29,7 @@ import java.time.LocalDate;
 public class PaymentDTO {
     private Long id;
 
+    // Las anotaciones Bean Validation protegen la capa de servicio de datos incompletos.
     @NotNull(message = "El ID del cliente es obligatorio")
     private Long clientId;
 

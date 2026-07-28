@@ -11,8 +11,10 @@ import jakarta.validation.constraints.Pattern;
  * @author GymManagement
  * @version 1.0
  */
+/** DTO con token y nueva contraseña para completar la recuperación. */
 public class PasswordResetConfirmDTO {
 
+    // @NotBlank impide confirmar el cambio sin token ni contraseña.
     @NotBlank(message = "El token es obligatorio")
     private String token;
 

@@ -8,9 +8,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+// @RestControllerAdvice traduce excepciones de cualquier controlador a respuestas
+// HTTP uniformes, evitando repetir try/catch en cada endpoint.
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // @ExceptionHandler conecta la excepción de integridad con HTTP 409 Conflict.
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<String> handleDataIntegrity(DataIntegrityViolationException ex) {
         String msg = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
@@ -21,6 +24,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body("Violación de integridad de datos");
     }
 
+    // Convierte errores de reglas de negocio en respuestas 400 o 404.
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<String> handleIllegalArgument(IllegalArgumentException ex) {
         String message = ex.getMessage() != null ? ex.getMessage() : "Solicitud inválida";
@@ -31,11 +35,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
     }
 
+    // Conserva el estado HTTP decidido explícitamente por la aplicación.
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<String> handleResponseStatus(ResponseStatusException ex) {
         return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
     }
 
+    // Informa al cliente que superó el límite temporal de solicitudes.
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<String> handleRateLimit(RateLimitExceededException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(ex.getMessage());

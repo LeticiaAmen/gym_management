@@ -33,10 +33,13 @@ import java.util.function.Function;
  *   mediante la propiedad `jwt.secret`.
  * - El algoritmo de firma utilizado es HMAC-SHA256 (HS256).
  */
+// @Service registra este componente para reutilizar la lógica de JWT desde otros beans.
 @Service //indica que es un servicio gestionado por spring
 public class JwtService {
     //Clave secreta utilizada para firmar y validar los JWT
     //Spring la inyecta automáticamente desde la configuración
+    // @Value obtiene el secreto desde la configuración externa, evitando guardarlo
+    // directamente en el código fuente.
     @Value("${jwt.secret}")
     private String secretKey;      // Spring la rellena al arrancar
 

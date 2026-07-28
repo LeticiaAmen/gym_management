@@ -6,6 +6,7 @@ import java.time.LocalDate;
  * Representa un cliente cuyo último pago válido vence en los próximos 7 días.
  * Incluye información mínima, la fecha de expiración y si se le envió recordatorio.
  */
+/** DTO de un cliente cuya membresía vence dentro del período de alerta. */
 public class ExpiringClientDTO {
     private Long id;
     private String firstName;

@@ -12,11 +12,15 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
+// @RestController devuelve los reportes como datos JSON para el frontend.
 @RestController
+// Todas las rutas de reportes se agrupan bajo este prefijo.
 @RequestMapping("/api/reports")
+// Los reportes pueden incluir información financiera y requieren ROLE_ADMIN.
 @PreAuthorize("hasRole('ADMIN')")
 public class ReportController {
 
+    // @Autowired conecta el controlador con la capa de negocio.
     @Autowired
     private ReportService reportService;
 

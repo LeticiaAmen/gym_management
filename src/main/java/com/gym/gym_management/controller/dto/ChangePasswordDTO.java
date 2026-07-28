@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Pattern;
  * @author GymManagement
  * @version 1.0
  */
+/** DTO validado para cambiar la contraseña del usuario autenticado. */
 public class ChangePasswordDTO {
 
     @NotBlank(message = "La contraseña actual es obligatoria")

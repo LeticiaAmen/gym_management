@@ -4,7 +4,9 @@ import com.gym.gym_management.model.PaymentMethod;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 
+/** Datos mínimos que el endpoint necesita para registrar un pago. */
 public class RegisterPaymentRequest {
+    // @NotNull y @Positive garantizan que el pago tenga referencias y monto válidos.
     @NotNull(message = "El ID del cliente es obligatorio")
     private Long clientId;
 

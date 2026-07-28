@@ -14,8 +14,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/** Controlador que entrega métricas y actividad reciente del panel administrativo. */
+// @RestController serializa las estadísticas y actividades como respuestas JSON.
 @RestController
+// Agrupa los endpoints del panel bajo una única ruta base.
 @RequestMapping("/api/dashboard")
+// El dashboard contiene información interna y solo lo pueden consultar administradores.
 @PreAuthorize("hasRole('ADMIN')")
 public class DashboardController {
 
@@ -29,6 +33,7 @@ public class DashboardController {
         this.activityService = activityService;
     }
 
+    // @GetMapping relaciona este método con GET /api/dashboard/stats.
     @GetMapping("/stats")
     public ResponseEntity<DashboardStatsDto> getDashboardStats() {
         long activeClients = clientService.countActiveClients();
@@ -38,6 +43,7 @@ public class DashboardController {
         return ResponseEntity.ok(stats);
     }
 
+    // GET /api/dashboard/activities devuelve actividad reciente.
     @GetMapping("/activities")
     public ResponseEntity<List<ActivityDto>> getRecentActivities(@RequestParam(defaultValue = "10") int limit) {
         List<ActivityDto> activities = activityService.getRecentActivities(limit);

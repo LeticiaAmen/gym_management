@@ -14,6 +14,7 @@ package com.gym.gym_management.authentication;
  * En el caso del sistema, solo los administradores (rol USER) pueden registrar nuevos usuarios.
  */
 
+/** DTO con los datos necesarios para registrar un usuario en el sistema. */
 public class RegisterRequest {
     private String email;
     // Contraseña del usuario (se enviará en texto plano desde el cliente,

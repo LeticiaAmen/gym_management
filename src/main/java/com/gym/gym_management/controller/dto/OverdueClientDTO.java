@@ -6,6 +6,7 @@ import java.time.LocalDate;
  * Cliente con información mínima para reportes de vencidos, incluyendo la fecha
  * de expiración de su último pago válido (no anulado) y si se le envió recordatorio.
  */
+/** DTO de un cliente cuya última membresía válida ya venció. */
 public class OverdueClientDTO {
     private Long id;
     private String firstName;

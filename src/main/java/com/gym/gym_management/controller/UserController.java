@@ -19,13 +19,17 @@ import jakarta.validation.Valid;
  * @author GymManagement
  * @version 1.0
  */
+// @RestController expone operaciones de usuario mediante respuestas JSON.
 @RestController
+// Ruta base de los endpoints de usuario.
 @RequestMapping("/api/users")
+// Solo un administrador puede gestionar credenciales de usuarios.
 @PreAuthorize("hasRole('ADMIN')")
 public class UserController {
 
     private final UserService userService;
 
+    // @Autowired inyecta UserService al crear este controlador.
     @Autowired
     public UserController(UserService userService) {
         this.userService = userService;

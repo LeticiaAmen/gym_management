@@ -15,6 +15,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * Configuración central de autenticación y autorización web.
+ * Define la cadena de filtros, las rutas públicas y el comportamiento stateless del JWT.
+ */
 
 
 @Configuration //Marca la clase como configuración de spring

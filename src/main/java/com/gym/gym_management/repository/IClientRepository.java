@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.time.LocalDate;
 
+// @Repository permite que Spring Data cree el objeto que ejecuta estas consultas JPA.
 @Repository
 public interface IClientRepository extends JpaRepository<Client, Long> {
 

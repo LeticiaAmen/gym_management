@@ -17,6 +17,7 @@ package com.gym.gym_management.authentication;
  * }
  */
 
+/** DTO de salida que encapsula el JWT generado tras una autenticación correcta. */
 public class AuthenticationResponse {
     //token JWT generado para el usuario autenticado
     private String token;

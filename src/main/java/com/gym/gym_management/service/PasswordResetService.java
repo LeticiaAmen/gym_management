@@ -22,6 +22,7 @@ import java.util.Optional;
  * @author GymManagement
  * @version 1.0
  */
+// @Service contiene el flujo de tokens de recuperación y cambio de contraseña.
 @Service
 public class PasswordResetService {
 
@@ -34,6 +35,7 @@ public class PasswordResetService {
 
     private static final long TOKEN_VALIDITY_MINUTES = 30; // 30 minutos de validez del token
 
+    // @Autowired inyecta repositorio, correo y codificador de contraseñas.
     @Autowired
     public PasswordResetService(IUserRepository userRepository,
                                 EmailService emailService,

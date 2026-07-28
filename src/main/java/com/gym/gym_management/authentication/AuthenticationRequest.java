@@ -13,6 +13,7 @@ package com.gym.gym_management.authentication;
  * hacia el backend para validar credenciales y generar un token JWT.
  */
 
+/** DTO que transporta email y contraseña desde el cliente al endpoint de login. */
 public class AuthenticationRequest {
     private String email;
     // Contraseña del usuario, enviada en texto plano desde el cliente

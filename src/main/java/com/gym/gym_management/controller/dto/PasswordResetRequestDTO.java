@@ -11,8 +11,10 @@ import jakarta.validation.constraints.NotBlank;
  * @author GymManagement
  * @version 1.0
  */
+/** DTO que inicia la recuperación a partir de un correo electrónico. */
 public class PasswordResetRequestDTO {
 
+    // @NotBlank y @Email validan el correo antes de iniciar el flujo.
     @NotBlank(message = "El correo electrónico es obligatorio")
     @Email(message = "El formato del correo electrónico no es válido")
     private String email;

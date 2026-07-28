@@ -5,6 +5,7 @@ package com.gym.gym_management.controller.dto;
  * Solo admite cambios a nombre, apellido y telefono.
  */
 
+/** DTO parcial usado para actualizar datos permitidos de un cliente existente. */
 public class ClientUpdateRequestDTO {
     private String firstName;
     private String lastName;

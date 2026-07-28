@@ -13,9 +13,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+// @Service registra esta clase como bean de Spring para concentrar la lógica de clientes.
 @Service
 public class ClientService {
 
+    // @Autowired inyecta el repositorio administrado por Spring Data JPA.
     @Autowired
     private IClientRepository clientRepository;
 

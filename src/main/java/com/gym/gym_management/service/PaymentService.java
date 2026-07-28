@@ -40,9 +40,12 @@ import java.util.Optional;
  *     <li>Para períodos sin pago, el estado derivado es EXPIRED si la fecha conceptual (día 10) está en el pasado; de lo contrario UP_TO_DATE.</li>
  * </ul>
  */
+// @Service convierte esta clase en un bean reutilizable de Spring y concentra
+// reglas como alta, anulación y cálculo de estados de pagos.
 @Service
 public class PaymentService {
 
+    // @Autowired conecta el servicio con el repositorio de pagos.
     @Autowired
     private IPaymentRepository paymentRepository;
 
@@ -257,6 +260,7 @@ public class PaymentService {
      * Justificación: persiste el estado para reportes, integraciones (ej. control de acceso físico) y consultas eficientes por índice.
      * @return número de filas actualizadas
      */
+    // @Transactional hace que la actualización masiva sea atómica.
     @Transactional
     public int expireOverduePayments() {
         return paymentRepository.bulkExpire(LocalDate.now(), PaymentState.UP_TO_DATE, PaymentState.EXPIRED);

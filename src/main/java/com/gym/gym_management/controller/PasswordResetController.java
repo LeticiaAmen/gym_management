@@ -19,13 +19,16 @@ import org.springframework.web.bind.annotation.*;
  * @author GymManagement
  * @version 1.0
  */
+// @RestController expone el flujo de recuperación como API JSON.
 @RestController
+// Prefijo común para solicitar, validar y confirmar la recuperación.
 @RequestMapping("/api/password")
 public class PasswordResetController {
 
     private final PasswordResetService passwordResetService;
     private final RateLimitService rateLimitService; // Nuevo servicio para rate limiting
 
+    // @Autowired inyecta el servicio de recuperación y el limitador de solicitudes.
     @Autowired
     public PasswordResetController(PasswordResetService passwordResetService, RateLimitService rateLimitService) {
         this.passwordResetService = passwordResetService;

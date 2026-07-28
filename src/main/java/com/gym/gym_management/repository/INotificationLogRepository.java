@@ -18,6 +18,7 @@ import java.util.Optional;
  * @author GymManagement
  * @version 1.0
  */
+// @Repository deja que Spring Data genere la implementación y gestione sus consultas.
 @Repository
 public interface INotificationLogRepository extends JpaRepository<NotificationLog, Long> {
 

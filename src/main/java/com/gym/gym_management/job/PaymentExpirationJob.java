@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
  * </ul>
  * El método del servicio es idempotente: ejecutarlo varias veces el mismo día no genera efectos extra.
  */
+// @Component registra el job en el contexto para que Spring pueda programarlo.
 @Component
 public class PaymentExpirationJob {
     private final PaymentService paymentService;
@@ -36,6 +37,7 @@ public class PaymentExpirationJob {
      * Ejecuta el proceso de expiración diariamente a las 02:00 AM.
      * Cron: segundo minuto hora díaMes mes díaSemana
      */
+    // @Scheduled ejecuta el método automáticamente según la expresión cron.
     @Scheduled(cron = "0 0 2 * * *") //0 0 2 * * * A los 2 am
     public void run() {
         if (!enabled) return;

@@ -37,7 +37,9 @@ import jakarta.validation.Valid;
  * implementando autenticación con JWT y restricción de acceso por roles.
  */
 
+// @RestController expone login y registro como endpoints REST.
 @RestController
+// Ruta base común del proceso de autenticación.
 @RequestMapping("/auth")
 //ruta base para los endpoints de autenticación
 public class AuthenticationController {
@@ -51,6 +53,7 @@ public class AuthenticationController {
     private final RateLimitService rateLimitService; // Nuevo servicio para rate limiting
 
     //Constructor con inyección de dependencias
+    // @Autowired inyecta autenticación, generación de JWT y rate limiting.
     @Autowired
     public AuthenticationController(AuthenticationService authenticationService, JwtService jwtService, AuthenticationManager authenticationManager, RateLimitService rateLimitService) {
         this.authenticationService = authenticationService;
@@ -83,6 +86,7 @@ public class AuthenticationController {
      * @return mensaje de éxito o error según el resultado de la operación
      */
     @PreAuthorize("hasRole('ADMIN')")
+    // @PostMapping recibe datos nuevos; @Valid activa las restricciones del DTO.
     @PostMapping("/admin/register")
     public ResponseEntity<String> registerAdmin(@Valid @RequestBody AdminRegisterDTO adminDTO) {
         try {
@@ -107,6 +111,7 @@ public class AuthenticationController {
      * @param request objeto con email y contraseña del usuario (opcional para evitar 400 si no se envía body).
      * @return token JWT en caso de éxito, o estado UNAUTHORIZED si las credenciales son inválidas o faltan.
      */
+    // POST /auth/login autentica credenciales y devuelve el JWT.
     @PostMapping("/login")
     public ResponseEntity<AuthenticationResponse> login (@RequestBody(required = false) AuthenticationRequest request, HttpServletRequest httpRequest) {
         String email = (request != null ? request.getEmail() : null);

@@ -20,7 +20,9 @@ import java.util.Optional;
  * Job programado que envía recordatorios de renovación.
  * Solo se instancia si app.reminder.enabled=true para facilitar tests sin stub de mail.
  */
+// @Component registra el proceso como bean ejecutable por Spring.
 @Component
+// @ConditionalOnProperty permite activar el job desde configuración sin cambiar código.
 @ConditionalOnProperty(value = "app.reminder.enabled", havingValue = "true")
 public class PaymentReminderJob {
 
@@ -48,7 +50,9 @@ public class PaymentReminderJob {
     }
 
     /** Ejecuta el recordatorio (cron ajustable). */
+    // @Scheduled dispara el envío diariamente a las 09:00.
     @Scheduled(cron = "0 0 9 * * *")
+    // @Transactional mantiene consistentes la consulta y el registro de notificaciones.
     @Transactional
     public void sendReminders() {
         if (!enabled) return;

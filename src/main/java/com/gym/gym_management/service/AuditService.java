@@ -8,9 +8,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 
+// @Service permite reutilizar el registro de auditoría desde varios servicios.
 @Service
 public class AuditService {
 
+    // @Autowired proporciona el repositorio JPA donde se guardan los eventos.
     @Autowired
     private AuditLogRepository auditLogRepository;
 

@@ -21,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * NOTA: Implementación temporal en memoria. Para producción se recomienda
  * usar Redis / Bucket4j con persistencia distribuida.
  */
+// @Service registra el limitador como bean compartido por login y recuperación.
 @Service
 public class RateLimitService {
 

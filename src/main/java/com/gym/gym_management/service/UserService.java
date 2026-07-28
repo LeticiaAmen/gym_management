@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
  *   - Cifra las contraseñas con BCrypt antes de guardarlas.
  *   - Valida que no se registren correos duplicados.
  */
+// @Service registra la capa de negocio de usuarios dentro del ApplicationContext.
 @Service
 public class UserService {
 
@@ -40,6 +41,7 @@ public class UserService {
     /**
      * Constructor con inyección de dependencias.
      */
+    // @Autowired permite que Spring proporcione repositorio y codificador configurados.
     @Autowired
     public UserService(IUserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;

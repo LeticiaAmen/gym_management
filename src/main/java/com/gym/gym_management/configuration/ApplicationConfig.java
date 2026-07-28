@@ -30,6 +30,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
  * el proceso de autenticación y autorización.
  */
 
+// @Configuration indica que Spring debe leer esta clase como fuente de configuración.
 @Configuration //Indica que esta clase define configuraciones de spring
 public class ApplicationConfig {
 
@@ -58,6 +59,8 @@ public class ApplicationConfig {
      * @return implementación de UserDetailsService basada en una expresión lambda.
      * @throws UsernameNotFoundException si no existe el usuario en la base de datos.
      */
+    // @Bean registra el objeto devuelto en el contenedor para que otros componentes
+    // puedan recibirlo mediante inyección de dependencias.
     @Bean
     public UserDetailsService userDetailsService() {
         // Se retorna una lambda que implementa el método loadUserByUsername de UserDetailsService.

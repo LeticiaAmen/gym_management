@@ -2,6 +2,7 @@ package com.gym.gym_management.controller.dto;
 
 import java.time.LocalDateTime;
 
+/** DTO inmutable que representa una actividad resumida para el dashboard. */
 public class ActivityDto {
     private final String type;
     private final String title;

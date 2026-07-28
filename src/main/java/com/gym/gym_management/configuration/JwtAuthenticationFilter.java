@@ -30,6 +30,8 @@ import java.io.IOException;
  * Esto asegura que el filtro se ejecute una sola vez por cada solicitud HTTP.
  */
 
+// @Component registra el filtro como bean y permite que Spring lo conecte a la cadena
+// de seguridad, antes de que la petición llegue al controlador.
 @Component //Indica que es un componente gestionado por Spring
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 

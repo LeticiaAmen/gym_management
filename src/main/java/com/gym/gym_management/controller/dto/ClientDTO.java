@@ -4,9 +4,11 @@ import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/** DTO usado para transportar clientes sin exponer directamente la entidad JPA. */
 public class ClientDTO {
     private Long id;
 
+    // @NotBlank, @Size, @Email y @Pattern validan el contrato de entrada del endpoint.
     @NotBlank(message = "El nombre es obligatorio")
     @Size(min = 2, max = 50, message = "El nombre debe tener entre 2 y 50 caracteres")
     private String firstName;

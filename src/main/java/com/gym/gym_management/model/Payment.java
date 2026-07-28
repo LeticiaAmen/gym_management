@@ -19,7 +19,9 @@ import java.time.LocalDateTime;
  * - "Panel de Administrador" (Administradores): permite registrar y gestionar pagos.
  * - "Recordatorios Automáticos de Pago": el campo expirationDate puede usarse para enviar notificaciones antes y después del vencimiento:contentReference[oaicite:1]{index=1}.
  */
+// @Entity indica que los pagos se almacenan y recuperan mediante JPA.
 @Entity
+// @Table define la tabla física usada para esta entidad.
 @Table(name = "payments")
 public class Payment {
 
@@ -71,6 +73,8 @@ public class Payment {
      * - nullable = false: un pago siempre pertenece a un cliente.
      */
     // Relación bidireccional: Payment es el lado propietario
+    // @ManyToOne modela muchos pagos pertenecientes a un cliente. LAZY evita
+    // cargar el cliente completo cuando solo se necesita el pago.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
     @JsonIgnore //evitamos exponer toda la info del cliente asociado y evitar ciclos recursivos con la lista de payments en cliente

@@ -17,9 +17,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+// @Service contiene cálculos y consultas combinadas que alimentan los reportes.
 @Service
 public class ReportService {
 
+    // @Autowired inyecta el repositorio que consulta pagos.
     @Autowired
     private IPaymentRepository paymentRepository;
 

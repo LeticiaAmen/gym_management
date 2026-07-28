@@ -22,6 +22,8 @@ import java.util.Optional;
  *   en el proceso de login y determinar su rol.
  * - Usado en ApplicationConfig para cargar datos de usuario en el UserDetailsService.
  */
+// @Repository identifica una interfaz de acceso a datos. Spring Data genera
+// automáticamente la implementación de JpaRepository al arrancar.
 @Repository
 public interface IUserRepository extends JpaRepository<User, Long> {
     //Busca un usuario por su dirección de correo electrónico.

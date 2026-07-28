@@ -12,7 +12,9 @@ import java.time.LocalDateTime;
  * @author GymManagement
  * @version 1.0
  */
+// @Entity representa en la base de datos el resultado de cada notificación enviada.
 @Entity
+// @Table separa estos registros de las entidades de negocio principales.
 @Table(name = "notification_logs")
 public class NotificationLog {
 

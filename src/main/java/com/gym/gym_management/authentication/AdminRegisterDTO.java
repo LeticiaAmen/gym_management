@@ -18,7 +18,9 @@ import jakarta.validation.constraints.Size;
  */
 public class AdminRegisterDTO {
 
+    // @NotBlank evita valores null o vacíos antes de llegar al servicio.
     @NotBlank(message = "El email es obligatorio")
+    // @Email valida la forma básica de una dirección de correo.
     @Email(message = "El formato del email no es válido")
     private String email;
 
